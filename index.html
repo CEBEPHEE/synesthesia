@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!--
+    Zero-data persistence: scripts and network requests are limited to this
+    site's own files ('self'): the app can load its bundled Tone.js and
+    instrument recordings, but cannot send anything (such as your photo) to any
+    other server. Nothing is fetched from a CDN.
+  -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self' blob: mediastream:; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <meta name="referrer" content="no-referrer">
+  <title>Synesthesia — turn a photo into music</title>
+  <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
+  <link rel="icon" href="assets/icon-32.png" type="image/png" sizes="32x32">
+  <link rel="apple-touch-icon" href="assets/icon-180.png">
+  <meta name="theme-color" content="#0f0f14">
+  <link rel="stylesheet" href="styles.css">
+  <script type="module" src="src/app.js"></script>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>Synesthesia</h1>
+      <p>Colour becomes a key, distance becomes an interval, the look of your photo picks the genre.</p>
+    </div>
+    <button id="how-btn" type="button">How it works</button>
+  </header>
+
+  <main>
+    <section id="upload-zone" role="button" tabindex="0" aria-label="Upload a photo, several photos or a video">
+      <div>
+        <strong>Drop a photo here</strong> or click to choose one (pasting from the clipboard works too)
+        <div class="small">🎬 Drop <b>several photos</b> for a slideshow, or <b>a video</b>, and get an MP4 with its own soundtrack.</div>
+        <div class="privacy">🔒 Your files are processed only in this browser tab and are never uploaded.</div>
+      </div>
+      <div class="zone-actions">
+        <button id="camera-btn" type="button">📷 Use camera</button>
+        <button id="demo-btn" type="button">Try a demo image</button>
+      </div>
+      <input id="file-input" type="file" accept="image/*,video/*" multiple hidden>
+    </section>
+
+    <section id="stage" hidden>
+      <div class="card">
+        <div class="canvas-wrap"><canvas id="canvas" aria-label="Your photo with its points of interest"></canvas></div>
+        <p id="status" role="status" aria-live="polite"></p>
+
+        <div class="transport">
+          <button id="play-btn" class="primary" disabled aria-pressed="false">▶ Play</button>
+          <button id="stop-btn" disabled>■ Stop</button>
+          <details class="menu" id="export-menu">
+            <summary class="disabled" id="export-btn">⬇ Export</summary>
+            <div class="menu-items" role="menu">
+              <button role="menuitem" data-export="wav"><b>Audio</b><span>WAV · the full mix</span></button>
+              <button role="menuitem" data-export="midi"><b>MIDI</b><span>the notes, for Ableton, FL Studio, GarageBand…</span></button>
+              <button role="menuitem" data-export="stems"><b>Stems + MIDI</b><span>ZIP · each instrument group as its own WAV</span></button>
+              <hr>
+              <button role="menuitem" data-export="photo"><b>Photo</b><span>JPEG · the picture itself (e.g. one taken with the camera)</span></button>
+              <button role="menuitem" data-export="card"><b>Music card</b><span>PNG · the photo with its points, style, key and chords</span></button>
+            </div>
+          </details>
+          <label>Style
+            <select id="style-select" aria-label="Music style">
+              <option value="auto">Auto</option>
+            </select>
+          </label>
+        </div>
+        <div class="transport secondary">
+          <label>Tempo <input id="tempo" type="range" min="50" max="160" value="90"> <span id="tempo-out">90</span> BPM</label>
+          <label>Reverb <input id="reverb" type="range" min="0" max="0.9" step="0.05" value="0.35"></label>
+          <label class="mood">Mood <span class="muted small">darker</span>
+            <input id="mood" type="range" min="-2" max="2" step="1" value="0" list="mood-ticks" aria-label="Mood: darker or brighter">
+            <span class="muted small">brighter</span>
+          </label>
+          <datalist id="mood-ticks"><option value="-2"></option><option value="-1"></option><option value="0"></option><option value="1"></option><option value="2"></option></datalist>
+          <label>Points play
+            <select id="points-select" aria-label="What the photo's points play">
+              <option value="default">Style default</option>
+              <option value="melody">Melody</option>
+              <option value="drums">Drums</option>
+              <option value="off">Nothing</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="edit-bar">
+          <button id="edit-btn" type="button" aria-pressed="false" disabled>✎ Edit</button>
+        </div>
+        <section id="edit-panel" class="edit-panel" hidden aria-label="Edit mode">
+          <p class="edit-help"><b>Edit mode.</b> Drag a point to reshape the melody · click the photo to add a point · double-click a point to remove it · click a colour (or a chord card) to change its chord.</p>
+          <div id="palette-bar" class="palette-bar"></div>
+          <div class="harmony">
+            <span>Harmony check</span>
+            <meter id="harmony-meter" min="0" max="100" low="60" high="80" optimum="100" value="0"></meter>
+            <b id="harmony-value"></b> <span id="harmony-verdict" class="muted"></span>
+          </div>
+          <ul id="edit-tips" class="edit-tips"></ul>
+          <div class="edit-actions">
+            <button id="reset-edits" type="button">↺ Reset to the photo</button>
+            <button id="edit-done" type="button">Done</button>
+          </div>
+        </section>
+
+        <div id="chord-strip"></div>
+        <svg id="voice-graph" role="img" aria-label="Voice leading: how each voice moves between chords"></svg>
+        <p class="muted small graph-caption">Each line is one voice of the chord. Flat lines mean smooth voice leading.</p>
+      </div>
+
+      <aside class="card">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tab-why" aria-selected="true" aria-controls="why-panel">Why it sounds like this</button>
+          <button role="tab" id="tab-numbers" aria-selected="false" aria-controls="numbers-panel">The numbers</button>
+        </div>
+        <div id="why-panel" role="tabpanel" aria-labelledby="tab-why"></div>
+        <div id="numbers-panel" role="tabpanel" aria-labelledby="tab-numbers" hidden></div>
+      </aside>
+    </section>
+
+    <section id="film-stage" hidden>
+      <div class="card">
+        <div class="canvas-wrap"><canvas id="film-canvas" width="640" height="360" aria-label="Preview of your video"></canvas></div>
+        <p id="film-status" role="status" aria-live="polite"></p>
+        <div id="film-scenes" class="film-scenes" aria-label="Scenes"></div>
+
+        <div class="transport">
+          <button id="film-play" class="primary" disabled>▶ Play</button>
+          <button id="film-stop" disabled>■ Stop</button>
+          <button id="film-export" disabled>🎬 Export MP4</button>
+          <label>Style <select id="film-style" aria-label="Music style"><option value="auto">Auto</option></select></label>
+        </div>
+        <div class="transport secondary">
+          <label id="film-seconds-wrap">Per photo <input id="film-seconds" type="range" min="2" max="10" step="0.5" value="4"> <span id="film-seconds-out">4</span> s</label>
+          <label class="mood">Mood <span class="muted small">darker</span>
+            <input id="film-mood" type="range" min="-2" max="2" step="1" value="0" list="mood-ticks" aria-label="Mood: darker or brighter">
+            <span class="muted small">brighter</span></label>
+          <label>Points play
+            <select id="film-points">
+              <option value="default">Style default</option><option value="melody">Melody</option><option value="drums">Drums</option><option value="off">Nothing</option>
+            </select></label>
+        </div>
+        <div class="transport secondary">
+          <label>Format
+            <select id="film-aspect">
+              <option value="16:9">16:9 · YouTube</option><option value="9:16">9:16 · Reels, TikTok, Shorts</option>
+              <option value="1:1">1:1 · square</option><option value="original">Original shape</option>
+            </select></label>
+          <label>Quality <select id="film-quality"><option value="720">720p</option><option value="1080">1080p</option></select></label>
+          <label>Framing <select id="film-fit"><option value="fit">Fit (whole picture)</option><option value="fill">Fill (crop)</option></select></label>
+          <label><input id="film-overlay" type="checkbox" checked> Show points</label>
+          <label id="film-original-wrap" hidden><input id="film-original" type="checkbox"> Keep the video's own sound (quietly)</label>
+        </div>
+        <div id="film-progress" class="film-progress" hidden>
+          <progress id="film-bar" max="1" value="0"></progress>
+          <button id="film-cancel" type="button">Cancel</button>
+        </div>
+        <ul id="film-tips" class="edit-tips"></ul>
+        <details class="film-credits-box">
+          <summary>Credits for your video description</summary>
+          <p class="muted small">The instrument recordings are free under CC BY 3.0, which asks for a credit when you publish. Paste this under your video:</p>
+          <textarea id="film-credits" rows="7" readonly></textarea>
+          <button id="film-copy" type="button">Copy</button>
+        </details>
+      </div>
+      <aside class="card" id="film-why"></aside>
+    </section>
+
+    <section id="camera-stage" hidden>
+      <div class="card">
+        <div class="canvas-wrap camera-wrap">
+          <canvas id="cam-canvas" width="640" height="360" aria-label="Camera picture with the points that play"></canvas>
+          <div id="cam-flash" class="cam-flash"></div>
+          <div id="cam-rec-badge" class="rec-badge" hidden>● REC 0:00</div>
+        </div>
+        <p id="cam-status" role="status" aria-live="polite"></p>
+        <div class="transport">
+          <button id="cam-music" class="primary">▶ Music</button>
+          <button id="cam-photo">📸 Take photo</button>
+          <button id="cam-record">● Record video</button>
+          <label>Style <select id="cam-style" aria-label="Music style"><option value="auto">Auto</option></select></label>
+          <button id="cam-repick" type="button" title="Choose the style again from what the camera sees now">↻</button>
+          <button id="cam-close" type="button">✕ Close camera</button>
+        </div>
+        <div class="transport secondary">
+          <label class="mood">Mood <span class="muted small">darker</span>
+            <input id="cam-mood" type="range" min="-2" max="2" step="1" value="0" list="mood-ticks" aria-label="Mood: darker or brighter">
+            <span class="muted small">brighter</span></label>
+          <label>Points play
+            <select id="cam-points">
+              <option value="default">Style default</option><option value="melody">Melody</option><option value="drums">Drums</option><option value="off">Nothing</option>
+            </select></label>
+          <label>Movement <meter id="cam-motion" min="0" max="1" value="0"></meter></label>
+          <label><input id="cam-mirror" type="checkbox" checked> Mirror</label>
+          <label id="cam-device-wrap" hidden>Camera <select id="cam-device"></select></label>
+        </div>
+        <div id="cam-result" class="cam-result" hidden>
+          <video id="cam-result-video" controls playsinline></video>
+          <div class="cam-result-actions">
+            <button id="cam-score" class="primary" type="button">🎬 Make music for this video</button>
+            <button id="cam-save" type="button">⬇ Save the recording</button>
+            <button id="cam-discard" type="button">Discard</button>
+          </div>
+          <p class="muted small">“Make music for this video” opens it like an uploaded video: scenes, a soundtrack and MP4 export.</p>
+        </div>
+      </div>
+      <aside class="card" id="cam-why"></aside>
+    </section>
+  </main>
+
+  <dialog id="how-dialog" aria-labelledby="how-title">
+    <form method="dialog" class="dialog-close"><button aria-label="Close">✕</button></form>
+    <h2 id="how-title">How it works</h2>
+    <p>Synesthesia reads your photo the way a musician might read a painting. Everything is calculated with simple, deterministic rules, so the same photo always gives the same music, and every step can be explained.</p>
+
+    <ol class="steps">
+      <li><b>Look at the photo.</b> The image is shrunk to about 190 px and analysed in a background thread. Three things are measured:
+        <ul>
+          <li><b>Colour palette:</b> the 6 main colours and how much space each takes (k-means clustering).</li>
+          <li><b>Points of interest:</b> up to 7 spots with strong edges and distinctive colour.</li>
+          <li><b>Photo fingerprint:</b> eight values from 0 to 1: brightness, contrast, saturation, colourfulness, warmth, sharpness, texture and complexity.</li>
+        </ul>
+      </li>
+      <li><b>Pick a style.</b> Each of the 15 styles has a target fingerprint (Shoegaze likes blurry, warm, glowing photos; Trap likes very dark, cold ones…). The style whose target is closest to your photo wins. You can always pick another one by hand.</li>
+      <li><b>Find the key.</b> The hue of the biggest colourful area picks the root note. The colour wheel is laid out on the circle of fifths, so similar colours give related keys. Brightness picks the mood (Lydian, major … minor, Phrygian), and the style can push it brighter or darker.</li>
+      <li><b>Build the chords.</b> Each main colour becomes a chord: its hue angle from the key colour picks the scale degree, its share of the frame sets how long it lasts. The style decides the chord type: triads, sevenths, add9, power chords… Tightly clustered points add an extra colour tone.</li>
+      <li><b>Lead the voices.</b> Every chord is voiced as close as possible to the previous one, and two neighbouring voices are never allowed to clash a semitone apart.</li>
+      <li><b>Play the points.</b> Points of interest are read left to right like notes on a staff. The points are read relative to each other, so a small cluster still becomes a full phrase. As a <b>melody</b>: higher in the photo (and, a little, brighter) = higher note, and the distance between points picks the interval (close points sound consonant, far apart ones add gentle tension; harsh intervals are never used). If the points form a flat line of similar colours, they play a simple motif instead of a monotone tune. As <b>drums</b> (the default in rock and jazz): the same rhythm is played by a drummer, higher points on higher drums, the strongest point on a cymbal. You can switch with “Points play”.</li>
+      <li><b>Arrange and play.</b> The style supplies the tempo range, rhythm patterns, swing, instruments and effects. Instruments are real recordings (piano, guitars, bass, strings, saxophone, flute, horn, harp, drum kits) played note by note with Tone.js; synthesizers are used only where the genre itself is synthetic (synthwave, house bass, 808). Each style was mixed by measuring every instrument group and balancing them.</li>
+    </ol>
+
+    <h3>Saving and editing</h3>
+    <ul class="small">
+      <li><b>⬇ Export</b>: the full mix as WAV, the notes as MIDI, or separate instrument tracks (stems) plus MIDI in a ZIP, for any music app.</li>
+      <li><b>Mood</b>: moves the key one or two steps darker or brighter without changing anything else.</li>
+      <li><b>✎ Edit</b>: drag the points, add or remove them, and pick another chord for any colour. ★ marks chords that will sound smooth, and the harmony check warns about choices that may sound rough.</li>
+      <li><b>Camera</b>: live music from your webcam. Moving hands play the points, colours held in front of the camera change the key (after two bars, so the music never twitches). You can also take a photo or record a video right in the app.</li>
+      <li><b>Slideshows and videos</b>: drop several photos or a video. One style and tempo carry the whole film, each photo or scene gets its own chords, and the music changes exactly when the picture does. Export as MP4 for YouTube, Reels or TikTok.</li>
+    </ul>
+
+    <p class="privacy">🔒 Privacy: the photo never leaves your device. The page is technically blocked from making network requests, and nothing is stored.</p>
+
+    <h3>The style library</h3>
+    <p class="muted small">What each style sounds like, and which photos it is chosen for.</p>
+    <div id="style-library"></div>
+
+    <h3>Credits</h3>
+    <p class="muted small">Instrument recordings are used under the Creative Commons Attribution 3.0 licence (CC BY 3.0); audio engine: Tone.js (MIT); MP4 packing: mp4-muxer (MIT).</p>
+    <ul id="credits" class="credits small"></ul>
+  </dialog>
+</body>
+</html>
