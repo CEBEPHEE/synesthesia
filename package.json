@@ -3,12 +3,14 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Photo → music: a synesthetic generator in the browser (Canvas + Web Worker + Tone.js)",
+  "description": "Photo \u2192 music: a synesthetic generator in the browser (Canvas + Web Worker + Tone.js)",
   "scripts": {
     "start": "python3 serve.py",
     "test": "node --test \"tests/**/*.test.js\""
   },
   "engines": {
     "node": ">=21"
-  }
+  },
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "author": "Victoria Lisitsyna <lisitsynavictoria@gmail.com>"
 }

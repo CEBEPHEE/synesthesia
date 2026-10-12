@@ -6,9 +6,9 @@ import { FEATURES } from '../src/vision/features.js';
 const profileAsFeatures = (style) => Object.fromEntries(Object.entries(style.profile).map(([k, [t]]) => [k, t]));
 
 describe('style library', () => {
-  it('has 15 styles with unique ids and complete definitions', () => {
-    assert.equal(STYLES.length, 15);
-    assert.equal(new Set(STYLES.map((s) => s.id)).size, 15);
+  it('has 17 styles with unique ids and complete definitions', () => {
+    assert.equal(STYLES.length, 17);
+    assert.equal(new Set(STYLES.map((s) => s.id)).size, 17);
     for (const s of STYLES) {
       assert.ok(s.tempo[0] < s.tempo[1], s.id);
       assert.ok(s.register.high - s.register.low >= 12, s.id);

@@ -53,7 +53,7 @@ export const INSTRUMENT_NAMES = {
   xylophone: 'xylophone', guitarLead: 'overdriven lead guitar',
   electricBass: 'electric bass guitar', rockBass: 'overdriven bass guitar', upright: 'mellow upright-style bass', contrabass: 'bowed contrabass',
   // synthesised on purpose
-  pad: 'warm analogue-style pad (synth)', supersaw: '80s supersaw (synth)', square: 'square-wave lead (synth)',
+  pad: 'warm analogue-style pad (synth)', pluck: 'plucked synth arpeggio', darkPad: 'dark filtered pad (synth)', sawLead: 'detuned saw-wave lead (synth)', cowbell: '808-style cowbell (synth, tuned to the melody)', supersaw: '80s supersaw (synth)', square: 'square-wave lead (synth)',
   synth: 'synth bass', '808': '808 bass with glide (synth)',
   // drum kits
   rock: 'recorded rock kit with crash and tom fills', washed: 'recorded kit drenched in reverb', soft: 'soft recorded kit',

@@ -14,6 +14,8 @@ import { loadVideo, sampleSignatures, grabFrame, seekTo, decodeSoundtrack } from
 import { drawFilmFrame, pointHits } from '../video/film-renderer.js';
 import { fillStyleSelect, renderStyleOptions, escapeHtml } from './panels.js';
 import { download, creditsText } from './export-menu.js';
+import { analyzeMovement, planFromMovement, applyMovementPlan, fitTempo } from '../core/dancer.js';
+import { movementSample, mainBody } from '../vision/movement.js';
 
 export const MAX_PHOTOS = 30;
 const rgb = (c) => `rgb(${c.r},${c.g},${c.b})`;
@@ -33,6 +35,7 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
     mood: $('film-mood'), points: $('film-points'), original: $('film-original'), originalWrap: $('film-original-wrap'),
     progress: $('film-progress'), bar: $('film-bar'), cancel: $('film-cancel'), credits: $('film-credits'),
     copy: $('film-copy'), why: $('film-why'), tips: $('film-tips'),
+    dancer: $('film-dancer'), plan: $('film-plan'), planWrap: $('film-plan-wrap'),
   };
   fillStyleSelect(ui.style, STYLES);
   ui.credits.value = creditsText();
@@ -42,7 +45,8 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
   const ctx = ui.canvas.getContext('2d');
 
   const setStatus = (t, err = false) => { ui.status.textContent = t; ui.status.classList.toggle('error', err); };
-  const opts = () => ({ fit: ui.fit.value, overlay: ui.overlay.checked });
+  // camera recordings already carry the “Made with Synesthesia” line in the picture
+  const opts = () => ({ fit: ui.fit.value, overlay: ui.overlay.checked, credit: !film?.fromCamera });
   const filmLength = () => (film.kind === 'video' ? film.video.usableDuration : film.timeline.totalSeconds + 1.5);
 
   function sizePreview() {
@@ -61,12 +65,30 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
       styleId: ui.style.value === 'auto' ? null : ui.style.value, getStyle,
       mood: Number(ui.mood.value), pointsAs, snap: film.kind === 'video' ? 'beat' : 'bar',
     };
-    const timeline = buildTimeline(scenes, settings);
-    const arrangement = timelineArrangement(timeline);
+    let timeline = buildTimeline(scenes, settings);
+    let arrangement;
+    film.offset = 0; film.plan = null; film.poseTrack = null;
+    if (film.following && film.motion) {
+      // the dancer's tempo (folded into the style's range); the music starts on their beat
+      const m = film.motion;
+      let tempo = timeline.tempo;
+      if (m.beat) {
+        tempo = fitTempo(m.beat.bpm, timeline.style.tempo);
+        film.offset = m.beat.offset % (60 / tempo);
+        scenes[0] = { ...scenes[0], seconds: Math.max(60 / tempo, scenes[0].seconds - film.offset) };
+        timeline = buildTimeline(scenes, { ...settings, styleId: timeline.style.id, tempo });
+      }
+      film.poseTrack = m.track;
+      film.plan = planFromMovement(m.samples, { duration: film.video.usableDuration, tempo: timeline.tempo, offset: film.offset, onsets: m.onsets });
+      arrangement = applyMovementPlan(timelineArrangement(timeline), film.plan, { hasDrums: !!timeline.style.drums });
+    } else {
+      arrangement = timelineArrangement(timeline);
+    }
     Object.assign(film, { timeline, arrangement, hits: pointHits(timeline, arrangement) });
     renderStyleOptions(ui.style, timeline.ranking);
     renderScenes();
     renderWhy();
+    drawPlan();
     ui.play.disabled = ui.stop.disabled = ui.exportBtn.disabled = false;
     setStatus(summary());
     const engine = getEngine();
@@ -105,7 +127,48 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
         : 'was picked by you.'} One style and one tempo (<b>${timeline.tempo} BPM</b>) keep the film sounding like one piece.</p>
       <p>Every ${film.kind === 'video' ? 'scene' : 'photo'} gets its own key colour and chords from its own palette, and the chords are voiced to flow smoothly from one ${film.kind === 'video' ? 'scene' : 'photo'} to the next.
       ${film.kind === 'video' ? 'Scene changes were found where the colours of the picture change abruptly; the music changes on the nearest beat.' : 'Photos change on the first beat of a bar, exactly when the music moves on.'}</p>
+      ${followText()}
       <ol class="scene-list">${timeline.sections.map((s) => `<li><span class="muted">${fmt(s.startSec)}</span> ${escapeHtml(s.score.key.name)}: ${s.score.chords.map((c) => escapeHtml(c.symbol)).join(' → ')}</li>`).join('')}</ol>`;
+  }
+
+  function followText() {
+    if (!film.following || !film.motion || !film.plan) return '';
+    const m = film.motion, p = film.plan, tl = film.timeline;
+    const barSec = (60 / tl.tempo) * 4;
+    const at = (bar) => fmt(film.offset + bar * barSec);
+    const levels = p.phrases.map((ph) => `<li><span class="muted">${at(ph.startBar)}</span> ${ph.level}${ph.lift === 'high' ? ', arms up / hands open: melody an octave higher' : ph.lift === 'low' ? ', closed pose: softer' : ''}</li>`).join('');
+    return `<h3>🕺 Following the ${m.view === 'hands' ? 'hands' : 'dancer'}</h3>
+      <p>The app watched the video (${m.view ?? 'nobody found'}). ${m.beat
+        ? `The moves have a steady beat of about ${Math.round(m.beat.bpm)} per minute, so the music plays at <b>${tl.tempo} BPM</b> and starts on that beat (${film.offset.toFixed(2)} s in).`
+        : 'The moves have no steady beat, so the music keeps its own tempo.'}
+      The notes still come from the picture; the movement shapes the song: calm phrases play only chords and melody, groove adds bass and drums, peak plays everything louder${p.accents.length ? `, and the ${p.accents.length} biggest move${p.accents.length > 1 ? 's get a cymbal' : ' gets a cymbal'} with a short drum fill` : ''}. Levels change only every 4 bars, so it stays a song.</p>
+      <ol class="scene-list">${levels}</ol>`;
+  }
+
+  /** The strip under the scenes: each bar's energy, the phrase levels, the big moves, the playhead. */
+  const LEVEL_COLOR = { still: '#3b3b4a', calm: '#2f5d7a', groove: '#2f7a6c', peak: '#b8922f' };
+  function drawPlan(playT = null) {
+    const show = !!(film?.following && film.plan);
+    ui.planWrap.hidden = !show;
+    if (!show) return;
+    const c = ui.plan, W = (c.width = c.clientWidth * (devicePixelRatio || 1) || 600), H = (c.height = 64 * (devicePixelRatio || 1));
+    const g = c.getContext('2d');
+    const p = film.plan, tl = film.timeline, total = film.video.usableDuration;
+    const barSec = (60 / tl.tempo) * 4;
+    const X = (t) => (t / total) * W;
+    g.clearRect(0, 0, W, H);
+    for (const ph of p.phrases) {
+      g.fillStyle = LEVEL_COLOR[ph.level];
+      const x0 = X(film.offset + ph.startBar * barSec), x1 = X(film.offset + (ph.startBar + ph.bars) * barSec);
+      g.fillRect(x0, H * 0.55, Math.max(1, x1 - x0 - 2), H * 0.45);
+      if (ph.lift === 'high') { g.fillStyle = '#fff'; g.font = `${Math.round(H * 0.28)}px system-ui`; g.fillText('↑', x0 + 4, H * 0.92); }
+    }
+    g.strokeStyle = '#7cc6c2'; g.lineWidth = Math.max(1, W / 600); g.beginPath();
+    p.bars.forEach((b, i) => { const x = X(film.offset + (i + 0.5) * barSec), y = H * 0.5 - b.energy * H * 0.42; if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+    g.stroke();
+    g.fillStyle = '#fff';
+    for (const st of p.accents) g.fillRect(X(film.offset + (st * barSec) / 16) - 1, 0, Math.max(2, W / 400), H);
+    if (playT != null) { g.fillStyle = '#ffd666'; g.fillRect(X(playT) - 1, 0, Math.max(2, W / 300), H); }
   }
 
   function renderTips(extra = []) {
@@ -116,6 +179,7 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
     } else if (film.video.fullDuration > film.video.usableDuration) {
       tips.push(`Only the first ${fmt(film.video.usableDuration)} of the video are used (limit: 3 minutes).`);
     }
+    if (film.kind === 'video' && !film.following) tips.push('Someone dancing or moving in the video (even just hands)? Press “🕺 Follow the dancer”: the music takes their tempo and gets calmer or more energetic with the moves.');
     if (ui.aspect.value === '9:16' && ui.fit.value === 'fill') tips.push('9:16 with “Fill” crops wide pictures a lot; “Fit” keeps the whole picture.');
     tips.push('Keep this tab visible while exporting: browsers slow down hidden tabs.');
     ui.tips.innerHTML = tips.map((t) => `<li>${escapeHtml(t)}</li>`).join('');
@@ -131,7 +195,8 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
   function draw() {
     if (!film?.timeline || busy) return;      // while exporting, the export owns the video element
     const t = position();
-    if (film.kind === 'video') syncVideo(t);
+    if (film.kind === 'video') syncVideo(t + (film.offset ?? 0));      // the music may start on the dancer's first beat
+    if (film.plan) drawPlan(getEngine()?.state === 'started' ? t + (film.offset ?? 0) : null);
     const i = drawFilmFrame(ctx, film, t, opts());
     ui.scenes.querySelectorAll('.scene').forEach((b) => b.classList.toggle('active', Number(b.dataset.scene) === i && getEngine()?.state === 'started'));
   }
@@ -223,7 +288,7 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
       const original = film.kind === 'video' && ui.original.checked ? await decodeSoundtrack(film.video.file) : null;
       const audio = await renderSoundtrack({
         arrangement, style: timeline.style, tempo: timeline.tempo, length, original,
-        musicLevel: original ? 0.85 : 1,
+        musicLevel: original ? 0.85 : 1, startAt: film.offset ?? 0,
       });
       setStatus(film.kind === 'video' ? 'Encoding the video (plays through once, in real time)…' : 'Encoding the video…');
       const o = opts();
@@ -232,7 +297,7 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
         onProgress: (f) => { ui.bar.value = f; },
         drawFrame: async (c, t) => {
           if (film.kind === 'video') await seekTo(film.video, Math.min(t, film.video.usableDuration - 0.01));
-          drawFilmFrame(c, film, t, o);
+          drawFilmFrame(c, film, t - (film.offset ?? 0), o);
         },
       };
       if (film.kind === 'video') job.capture = (c, frameCount, emit) => captureVideo(c, frameCount, fps, emit, o);
@@ -263,7 +328,7 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
       for (let i = from; i < frameCount; i++) {
         if (abort?.signal.aborted) throw new DOMException('Export cancelled', 'AbortError');
         await seekTo(v, Math.min(i / fps, v.usableDuration - 0.01));
-        drawFilmFrame(c, film, i / fps, o);
+        drawFilmFrame(c, film, i / fps - (film.offset ?? 0), o);
         await emit(i);
       }
     };
@@ -278,7 +343,7 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
       stillCtx.drawImage(v, 0, 0);
       let n = 0;
       while (next < frameCount && next / fps <= upTo) {
-        drawFilmFrame(c, film, next / fps, o);
+        drawFilmFrame(c, film, next / fps - (film.offset ?? 0), o);
         pending.push(emit(next));   // encodes synchronously; the promise only carries back-pressure/errors
         next++; n++;
       }
@@ -333,6 +398,8 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
     film?.video?.pause();
     if (film?.video) { URL.revokeObjectURL(film.video.src); film.video.remove(); }
     film = null;
+    // nothing else may keep playing (e.g. the recording's preview in camera mode or "This session")
+    document.querySelectorAll('#cam-result-video, dialog.player video').forEach((v) => v.pause());
     ui.stage.hidden = false;
     ui.play.disabled = ui.stop.disabled = ui.exportBtn.disabled = true;
     ui.style.value = opts.styleId && STYLES.some((x) => x.id === opts.styleId) ? opts.styleId : 'auto';
@@ -340,6 +407,15 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
     ui.mood.value = String(opts.mood ?? 0);
     ui.secondsWrap.hidden = kind !== 'slides';
     ui.originalWrap.hidden = kind !== 'video';
+    // a fresh soundtrack never mixes in the video's own sound unless asked for again;
+    // for camera recordings that sound IS the old live music
+    ui.original.checked = false;
+    ui.original.disabled = !!opts.fromCamera;
+    ui.originalWrap.title = opts.fromCamera ? 'This recording\'s own sound is the live music you played, so it is left out.' : '';
+    ui.dancer.hidden = kind !== 'video';
+    ui.dancer.setAttribute('aria-pressed', 'false');
+    ui.dancer.textContent = '🕺 Follow the dancer';
+    ui.planWrap.hidden = true;
     ui.overlay.checked = kind === 'slides';
     ui.scenes.innerHTML = ''; ui.why.innerHTML = '';
     ctx.clearRect(0, 0, ui.canvas.width, ui.canvas.height);
@@ -383,13 +459,76 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
         items.push({ image, analysis, start: sc.start, end: sc.end });
       }
       await seekTo(video, 0);
-      film = { kind: 'video', items, video };
+      film = { kind: 'video', items, video, fromCamera: !!opts?.fromCamera };
       sizePreview(); compose(); renderTips(); loop();
+      if (opts?.follow) ui.dancer.click();              // "a soundtrack that follows my moves"
     } catch (err) {
       console.error(err);
       setStatus(err.message, true);
     }
   }
+
+  // ── Follow the dancer: watch the video once, frame by frame ──
+  async function watchMover() {
+    const v = film.video, my = ticket;
+    busy = true; abort = new AbortController();
+    getEngine()?.stop({ hard: true });
+    ui.progress.hidden = false; ui.bar.value = 0;
+    ui.play.disabled = ui.exportBtn.disabled = ui.dancer.disabled = true;
+    const samples = [], views = {}, track = [];
+    try {
+      const { trackFrame, trackersLoaded } = await import('../vision/trackers.js');
+      if (!trackersLoaded()) setStatus('Loading the body and hand tracker (about 23 MB, only the first time)…');
+      // 12 frames a second, by seeking: the result is the same however fast the computer is
+      const step = 1 / 12, end = v.usableDuration;
+      let prev = null;
+      for (let t = 0; t < end; t += step) {
+        if (abort.signal.aborted || my !== ticket) throw new DOMException('Cancelled', 'AbortError');
+        await seekTo(v, t);
+        const cur = await trackFrame(v, 1 + t * 1000);
+        const s = movementSample(prev, cur, step);
+        samples.push({ t, ...s });
+        track.push({ t, body: mainBody(cur.bodies), hands: cur.hands, speed: s.speed });
+        if (s.view) views[s.view] = (views[s.view] ?? 0) + 1;
+        prev = cur;
+        ui.bar.value = t / end;
+        setStatus(`Watching the moves… ${Math.round((100 * t) / end)}%`);
+      }
+      const view = Object.entries(views).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+      const seen = samples.filter((x) => x.present).length / Math.max(1, samples.length);
+      if (seen < 0.2) {
+        setStatus('No one (and no hands) was found in most of the video, so the music stays as it was.');
+        film.following = false;
+        ui.dancer.setAttribute('aria-pressed', 'false'); ui.dancer.textContent = '🕺 Follow the dancer';
+        return;
+      }
+      const a = analyzeMovement(samples, { duration: end, styleTempo: film.timeline.style.tempo });
+      film.motion = { samples, onsets: a.onsets, beat: a.beat, view, track };
+    } catch (err) {
+      if (err.name !== 'AbortError') { console.error(err); setStatus(`Could not follow the moves: ${err.message}`, true); }
+      film.following = false;
+      ui.dancer.setAttribute('aria-pressed', 'false'); ui.dancer.textContent = '🕺 Follow the dancer';
+      return;
+    } finally {
+      busy = false; abort = null;
+      ui.progress.hidden = true;
+      ui.play.disabled = ui.exportBtn.disabled = ui.dancer.disabled = false;
+      if (my === ticket) await seekTo(v, 0);
+    }
+    if (my !== ticket || !film) return;
+    compose(); renderTips();
+    setStatus(`${summary()} · 🕺 Following the ${film.motion.view === 'hands' ? 'hands' : 'dancer'}${film.motion.beat ? ` at their tempo (${film.timeline.tempo} BPM)` : ''}.`);
+  }
+
+  ui.dancer.addEventListener('click', () => {
+    if (!film || busy || film.kind !== 'video') return;
+    film.following = !film.following;
+    ui.dancer.setAttribute('aria-pressed', String(film.following));
+    ui.dancer.textContent = film.following ? '🕺 Following the dancer ✓' : '🕺 Follow the dancer';
+    if (film.following) ui.overlay.checked = true;       // show the body that is being followed
+    if (film.following && !film.motion) watchMover();
+    else { compose(); renderTips(); }
+  });
 
   function close() {
     ticket++;

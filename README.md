@@ -1,10 +1,10 @@
 # Synesthesia — music from photos, videos and your camera
 
-**Created by Victoria Lisitsyna.** Free to use under the Apache License 2.0, with attribution (see [License](#license)).
+**Created by Victoria Lisitsyna.** Free for noncommercial use under the PolyForm Noncommercial License 1.0.0; commercial use needs a paid licence (see [License](#license)).
 
 Synesthesia turns what you see into original, harmonious music, right in the browser.
 Colours set the key and the chords, shapes and movement play the melody, and the look of
-the picture picks one of 15 genres (from classical piano and jazz to shoegaze, house and trap),
+the picture picks one of 17 genres (from classical piano and jazz to shoegaze, house, trap, electronic and Brazilian phonk),
 played with real recorded instruments. It explains every musical decision it makes,
 and nothing you show it ever leaves your device.
 
@@ -14,15 +14,15 @@ and nothing you show it ever leaves your device.
 |---|---|---|
 | 🖼 **A photo** | A music loop in the genre that fits the picture. Change the genre, tempo or mood, or open **✎ Edit** to drag the points (the melody) and pick chords for each colour. | Music (WAV), notes (MIDI), separate instruments (ZIP), the photo, a “music card” (PNG) or a short video (MP4) |
 | 🎬 **Several photos** | A slideshow with one continuous soundtrack: each photo gets its own key and chords, and photos change on the beat. | MP4 in 16:9, 9:16 (Reels, TikTok, Shorts), 1:1 or the original shape |
-| 🎥 **A video** | A soundtrack composed scene by scene: the app finds the cuts and the music changes key with each scene. Optionally keeps the video's own sound underneath. | MP4 with the new soundtrack |
-| 📷 **Your camera** | Live music: moving hands play the melody, colours held up to the camera change the key, every change lands on the beat. | Photos and videos recorded with the music; a recording can also get a newly composed soundtrack |
+| 🎥 **A video** | A soundtrack composed scene by scene: the app finds the cuts and the music changes key with each scene. Optionally keeps the video's own sound underneath. With **🕺 Follow the dancer**, the music also takes the dancer's tempo and gets calmer or more energetic with the moves. | MP4 with the new soundtrack |
+| 📷 **Your camera** | Live music that follows **the picture** (colours held up to the camera change the key) or **your moves** (body and hand tracking: dance and bass and drums come in, stand still and it holds), every change lands on the beat. | Photos and videos recorded with the music; a recording can also get a newly composed soundtrack |
 
 Also:
 
 * **Why it sounds like this**: for every picture, the app explains the genre, key, tempo, chords and melody in plain words, with the numbers behind them.
 * **This session**: recordings and camera photos are kept in the page until you close the tab, so switching to something else never loses them. The browser's Back button returns to the previous photo, video or the camera.
 * **Private by design**: no server, no account, no uploads. The page is technically blocked from sending anything anywhere.
-* **Free to use what you make**: the instruments are CC BY 3.0 recordings, so just credit them when you publish (the app gives you the credit line).
+* **Free for personal use**: make and share music and videos for yourself, study or noncommercial projects. Commercial use needs a licence (see [License](#license)). The instruments are CC BY 3.0 recordings, so credit them when you publish (the app gives you the credit line).
 
 ## Running it
 
@@ -88,8 +88,8 @@ Tests: `npm test` (Node ≥ 21, no dependencies).
 
 ## Styles and automatic selection
 
-Fifteen styles: Classical Piano, Cinematic, Ambient, Shoegaze, Dream Pop, Indie Rock,
-Hard Rock, Pop, Synthwave, House, Jazz, Lo-fi Hip-Hop, Boom Bap, Trap, Folk / Acoustic.
+Seventeen styles: Classical Piano, Cinematic, Ambient, Shoegaze, Dream Pop, Indie Rock,
+Hard Rock, Pop, Synthwave, House, Jazz, Lo-fi Hip-Hop, Boom Bap, Trap, Electronic, Brazilian Phonk, Folk / Acoustic.
 
 Each style defines a target photo fingerprint (with signature traits weighted ×2), a tempo
 range, a mode shift, a chord vocabulary (triads, sevenths, ninths, add9, power chords),
@@ -99,7 +99,10 @@ distance; the closest style wins. You can override it from the Style menu.
 
 Calibration: normalisation constants were tuned on a set of real photos and edited
 variants (blurred, darkened, over-saturated, black-and-white with grain) so that typical
-photos spread across the 0..1 range and 14 of the 15 styles win on at least one of them.
+photos spread across the 0..1 range and 14 of the original 15 styles win on at least one of them.
+Electronic (sharp, contrasty, cold, busy: club and city lights) and Brazilian Phonk (dark,
+gritty, saturated, contrasty) were added later; on random fingerprints each wins about as
+often as any other style.
 
 ## Saving (photo mode)
 
@@ -128,7 +131,37 @@ because GitHub's web upload accepts at most 100 files at once.
 3. After a minute the app is at `https://<user>.github.io/<repository>/`.
 
 If the app says the instrument recordings were not found, the `assets` folder was not uploaded.
+
+**Search engines and AI assistants.** The pages carry a description, link-preview tags (`assets/og.png`) and
+structured data (schema.org `WebApplication` and `FAQPage`). There are three landing pages for the main uses
+(`photo-to-music.html`, `video-soundtrack.html`, `webcam-music.html`), a `sitemap.xml`, `robots.txt` and an `llms.txt`
+summary for AI tools. After publishing, add the site to Google Search Console and Bing Webmaster Tools and submit
+`sitemap.xml`. If the site moves to its own domain, update the address in those files (search for `cebephee.github.io`).
 The camera works there too, because GitHub Pages uses https.
+
+## Follow the dancer (videos)
+
+An optional button in video mode. The person in the video **never writes the notes** (chords and melody still
+come from the picture, which is what keeps it musical); the movement shapes only what changes slowly in real songs:
+
+1. **Tempo**: one tempo for the whole video, the dancer's. Moves are found as sudden bursts of speed (onsets);
+   every tempo from 70 to 160 BPM is tried and the one whose beat clock lines the moves up best wins, then it is
+   folded by octaves into the style's range. The music starts on the dancer's beat. No steady beat → the music keeps its own tempo.
+2. **Form**: each 4-bar phrase gets a level from how much the person moves (relative to the whole video):
+   *still* (chords only, the music holds), *calm* (chords + melody), *groove* (+ bass and drums), *peak* (everything, louder).
+   Levels change only between phrases, with hysteresis, so it sounds like verses and choruses, not twitching.
+3. **Colour**: raised arms or open hands for a phrase → the same melody an octave higher; fists → softer.
+4. **Accents**: the few biggest moves (at most 5, at least 4 bars apart, never in calm phrases) get a cymbal crash with a short snare fill, on the 16th grid.
+
+**Partial bodies and hands.** Tracking uses MediaPipe **Pose Landmarker** (33 body points) and **Hand Landmarker**
+(21 points per hand, every finger joint), so it works for a full body, an upper body (only the visible points count,
+sized by the shoulders), or a close-up of hands, where finger movement and how open the hands are drive the music.
+The video is watched frame by frame (12 per second), so the result does not depend on the computer's speed.
+A strip under the scenes shows the energy, the phrase levels and the big moves.
+
+Code: `vision/trackers.js` (loading, about 23 MB the first time, cached afterwards; CPU/WebAssembly in the tab),
+`vision/movement.js` (speed and lift from whatever is visible) and `core/dancer.js` (tempo, plan, shaping the arrangement),
+both pure and unit-tested.
 
 ## Edit mode and Mood
 
@@ -191,8 +224,16 @@ Tone.js audio repository. Audio engine: Tone.js (MIT), bundled in `vendor/`.
 
 **📷 Use camera** turns the webcam into an instrument (needs `localhost` or `https://`; the picture never leaves the tab).
 
-* Every 250 ms the frame is analysed (colours and points in the worker, motion by frame differencing in `vision/motion.js`).
-  While something moves, the moving spots become the points, so a waving hand plays the melody (or the drums).
+* Every 250 ms the frame is analysed (colours and points in the worker; the Movement meter uses frame differencing in `vision/motion.js`).
+* **Music follows: 🖼 The picture | 🕺 My moves.** The same choice is used for the live music and for what gets recorded.
+  * *The picture*: colours and the striking points of the frame make the music; steady and calm.
+  * *My moves*: MediaPipe body and hand tracking runs live in the tab (~10 times a second, same models as Follow the dancer;
+    full body, upper body or only hands). The notes still come from the picture; `core/live-moves.js` (`LiveMoves`) turns
+    the moves into a level every two bars, from the two bars just played: still → only chords, calm → chords + melody,
+    groove → + bass and drums, peak → everything louder; arms up / open hands → melody an octave higher. Borders
+    (body heights per second): still < 0.075, calm < 0.2, groove < 0.45, with 15% hysteresis; tuned on a fake camera
+    fed with a dance clip and with a motionless person plus sensor noise (≈0.05). A level change reloads the same
+    arrangement shaped by `applyMovementPlan` on the bar line, continuing from the same point of the loop (`loopOffset`).
 * `core/live.js` (`LiveConductor`) decides once per bar, one beat before it starts; the engine loads the new part anchored on that bar,
   so changes always land on the downbeat:
   style and tempo are fixed when the music starts (↻ re-picks them); key and chords change only after the new harmony has been
@@ -202,15 +243,22 @@ Tone.js audio repository. Audio engine: Tone.js (MIT), bundled in `vendor/`.
 
 ## License
 
-Synesthesia is © 2026 **Victoria Lisitsyna** and is released under the
-[Apache License 2.0](LICENSE): anyone may use, copy, modify and share it for free,
-including commercially.
+Synesthesia is © 2026 **Victoria Lisitsyna** and is source-available under the
+[PolyForm Noncommercial License 1.0.0](LICENSE).
 
-**Attribution is required.** Every copy, fork or modified version must keep the
-[NOTICE](NOTICE) file and credit the author — “Synesthesia by Victoria Lisitsyna” —
-in its documentation and in its interface (for example in an “About” or “Credits” section).
+**Free for noncommercial use.** Anyone may read, run, copy, change and share the code, and use the app,
+for personal projects, hobby, study, teaching, research, and for noncommercial organisations
+(charities, schools, public bodies). That includes sharing the music and videos you make on social media.
+Copies and changed versions must keep the [LICENSE](LICENSE) and the `Required Notice` lines in [NOTICE](NOTICE)
+(“Synesthesia by Victoria Lisitsyna”).
 
-Music, pictures and videos you make with the app are yours. Saved videos, music cards, WAV and MIDI files
-carry a small “Made with Synesthesia” line; please keep it, or credit the app when you publish.
-The **Credits for your video description** box in the app gives a ready-made text to paste, which names the author.
-The instrument recordings are CC BY 3.0 and the bundled libraries are MIT (see NOTICE and Credits above).
+**Commercial use needs a paid licence.** Using Synesthesia or its code in a company, a commercial product or
+service, client work, advertising, or anything that is sold requires a separate commercial licence.
+To get one, write to **[lisitsynavictoria@gmail.com](mailto:lisitsynavictoria@gmail.com)**.
+
+Saved videos, music cards, WAV and MIDI files carry a small “Made with Synesthesia” line; please keep it.
+The **Credits for your video description** box in the app gives a ready-made text to paste.
+
+Versions published earlier under the Apache License 2.0 stay under that licence; this licence applies from this version on.
+The third-party parts keep their own licences and are not covered by it: Tone.js and mp4-muxer (MIT),
+the instrument recordings (CC BY 3.0). See [NOTICE](NOTICE) and Credits above.

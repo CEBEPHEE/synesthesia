@@ -62,7 +62,7 @@ export function initGallery({ root, onUsePhoto, onUseVideo }) {
       render();
     } else if (b.dataset.act === 'use') {
       if (it.kind === 'photo') onUsePhoto(await createImageBitmap(it.blob));
-      else onUseVideo(new File([it.blob], fileName(it), { type: it.blob.type }), it.settings);
+      else onUseVideo(new File([it.blob], fileName(it), { type: it.blob.type }), { ...it.settings, fromCamera: true });
     } else if (b.dataset.act === 'remove') {
       if (!it.saved && !confirmRemove(it)) return;
       items.splice(items.indexOf(it), 1);

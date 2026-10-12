@@ -65,8 +65,21 @@ export async function renderStems(job, onProgress = () => {}) {
  *   arrangement: timelineArrangement(timeline); length: seconds of the film
  * @returns {Promise<{channels: Float32Array[], sampleRate: number}>}
  */
-export async function renderSoundtrack({ arrangement, style, tempo, reverb = null, length, original = null, originalLevel = 0.35, musicLevel = 1 }) {
+export async function renderSoundtrack({ arrangement, style, tempo, reverb = null, length, original = null, originalLevel = 0.35, musicLevel = 1, startAt = 0 }) {
   const sampleRate = 48000;
+  if (startAt > 0) {
+    // the music starts a moment into the film (on the dancer's first beat): render it, then place it
+    const music = await renderSoundtrack({ arrangement, style, tempo, reverb, length: Math.max(1, length - startAt), musicLevel });
+    const n = Math.round(length * sampleRate), off = Math.round(startAt * sampleRate);
+    const channels = music.channels.map((ch) => { const out = new Float32Array(n); out.set(ch.subarray(0, n - off), off); return out; });
+    if (original) {
+      for (let c = 0; c < 2; c++) {
+        const src = original.getChannelData(Math.min(c, original.numberOfChannels - 1));
+        for (let i = 0; i < Math.min(n, src.length); i++) channels[c][i] = Math.max(-0.99, Math.min(0.99, channels[c][i] + src[i] * originalLevel));
+      }
+    }
+    return { channels, sampleRate };
+  }
   const musicEnd = Math.min(length, (arrangement.loopSteps * 60) / tempo / 4);
   const buffer = await Tone.Offline(async () => {
     const engine = new AudioEngine();

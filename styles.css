@@ -231,6 +231,14 @@ details.menu > summary.busy { opacity: .7; cursor: progress; }
 .rec-badge[hidden] { display: none; }
 button.recording { border-color: #ff5f56; color: #ff8a80; }
 #cam-motion { width: 90px; }
+.cam-follows { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-top: 12px; }
+.cam-follows-label { color: var(--muted); font-size: 13px; }
+.cam-follows label { cursor: pointer; }
+.cam-follows input { position: absolute; opacity: 0; pointer-events: none; }
+.cam-follows label span { display: inline-block; padding: 7px 14px; border: 1px solid var(--line); border-radius: 999px; font-size: 14px; background: #1b1b24; }
+.cam-follows input:checked + span { border-color: var(--accent); color: var(--accent); background: rgba(255,214,102,.08); }
+.cam-follows input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+#cam-follows-hint { flex-basis: 100%; }
 .cam-result { margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: #1b1b24; }
 .cam-result[hidden] { display: none; }
 .cam-result video { width: 100%; max-height: 300px; border-radius: 8px; background: #000; }
@@ -278,3 +286,27 @@ dialog.player video { width: 100%; max-height: 75vh; border-radius: 8px; backgro
 .site-footer b { color: var(--text); font-weight: 600; }
 .site-footer a { color: var(--accent-2); }
 
+
+/* ── Follow the dancer ── */
+#film-dancer[aria-pressed="true"] { border-color: var(--accent); background: #2a2718; }
+.film-plan-wrap { margin-top: 6px; }
+.film-plan-wrap[hidden] { display: none; }
+.film-plan { width: 100%; height: 64px; display: block; border-radius: 8px; background: #111118; }
+.plan-legend { color: var(--muted); display: flex; gap: 6px 10px; flex-wrap: wrap; align-items: center; margin-top: 4px; }
+.plan-legend .lg { display: inline-block; width: 12px; height: 8px; border-radius: 2px; margin-right: -4px; }
+.lg.still { background: #3b3b4a; } .lg.calm { background: #2f5d7a; } .lg.groove { background: #2f7a6c; } .lg.peak { background: #b8922f; } .lg.acc { background: #fff; width: 3px; }
+
+/* ── FAQ and landing pages ── */
+.faq h2 { margin: 0 0 8px; font-size: 18px; }
+.faq details { border-top: 1px solid var(--line); padding: 10px 2px; }
+.faq summary { cursor: pointer; font-weight: 600; }
+.faq details p { margin: 8px 0 2px; color: #d7d4cc; }
+.faq a, .landing a { color: var(--accent-2); }
+.landing header { display: block; }
+.landing header h1 { font-size: 34px; }
+.landing .crumb { margin: 0 0 6px; font-size: 14px; }
+.landing .crumb a { color: var(--muted); }
+.landing header p { max-width: 760px; font-size: 17px; }
+.cta { display: inline-block; background: var(--accent); color: #18150a !important; font-weight: 700; text-decoration: none; padding: 12px 20px; border-radius: 10px; }
+.how { padding-left: 22px; line-height: 1.6; }
+.how li { margin: 8px 0; }

@@ -68,6 +68,52 @@ function drawPoints(ctx, rect, analysis, hits, t, W) {
   });
 }
 
+const BONES = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24], [23, 25], [25, 27], [24, 26], [26, 28], [0, 11], [0, 12]];
+const FINGERS = [[0, 1, 2, 3, 4], [0, 5, 6, 7, 8], [0, 9, 10, 11, 12], [0, 13, 14, 15, 16], [0, 17, 18, 19, 20]];
+
+/**
+ * "Follow the dancer": the body (and hands) the app is following, at video time `tv`,
+ * glowing with how much the person moves at that moment.
+ * @param {Array<{t, body, hands, speed}>} track  sampled during the analysis (12 per second)
+ */
+function drawBody(ctx, rect, track, tv, W) {
+  if (!rect || !track.length) return;
+  let lo = 0, hi = track.length - 1;                     // nearest sample
+  while (hi - lo > 1) { const m = (lo + hi) >> 1; if (track[m].t <= tv) lo = m; else hi = m; }
+  const f = Math.abs(track[hi].t - tv) < Math.abs(track[lo].t - tv) ? track[hi] : track[lo];
+  if (!f || Math.abs(f.t - tv) > 0.25) return;
+  drawSkeleton(ctx, rect, f, W);
+}
+
+/** One body (33 points) and its hands (21 points each), glowing with `speed`. Coordinates 0…1 in `rect`. */
+export function drawSkeleton(ctx, rect, f, W = ctx.canvas.width) {
+  const P = (p) => [rect.x + p.x * rect.w, rect.y + p.y * rect.h];
+  const glow = Math.min(1, (f.speed ?? 0) / 2);
+  const lw = Math.max(2, W / 300);
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = `rgba(124,198,194,${0.55 + 0.4 * glow})`;
+  ctx.lineWidth = lw * (1 + glow);
+  if (f.body) {
+    for (const [a, b] of BONES) {
+      const p = f.body[a], q = f.body[b];
+      if ((p.visibility ?? 1) < 0.5 || (q.visibility ?? 1) < 0.5) continue;
+      ctx.beginPath(); ctx.moveTo(...P(p)); ctx.lineTo(...P(q)); ctx.stroke();
+    }
+    ctx.fillStyle = `rgba(255,214,102,${0.6 + 0.4 * glow})`;
+    for (const k of [0, 15, 16, 27, 28]) {
+      const p = f.body[k];
+      if ((p.visibility ?? 1) < 0.5) continue;
+      ctx.beginPath(); ctx.arc(...P(p), lw * (2.2 + 2 * glow), 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  ctx.lineWidth = lw * 0.8;
+  for (const h of f.hands ?? []) {
+    for (const chain of FINGERS) { ctx.beginPath(); ctx.moveTo(...P(h[chain[0]])); for (const k of chain.slice(1)) ctx.lineTo(...P(h[k])); ctx.stroke(); }
+  }
+  ctx.restore();
+}
+
 /** The small "Made with Synesthesia" line in the corner of every video. */
 export function drawCredit(ctx, W = ctx.canvas.width, H = ctx.canvas.height) {
   const size = Math.max(11, Math.round(Math.min(W, H) / 42));
@@ -106,7 +152,8 @@ function drawPicture_(ctx, film, t, fit, overlay) {
 
   if (film.kind === 'video') {
     const rect = drawPicture(ctx, film.frame ?? film.video, W, H, fit);   // film.frame: a still copy during export
-    if (overlay) drawPoints(ctx, rect, film.items[i]?.analysis, film.hits[i], t, W);
+    if (overlay && film.poseTrack) drawBody(ctx, rect, film.poseTrack, t + (film.offset ?? 0), W);   // following the dancer: show the body
+    else if (overlay) drawPoints(ctx, rect, film.items[i]?.analysis, film.hits[i], t, W);
     return i;
   }
 

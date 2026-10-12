@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://cebephee.github.io/synesthesia/sitemap.xml

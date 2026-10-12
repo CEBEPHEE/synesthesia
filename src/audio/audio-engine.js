@@ -65,7 +65,7 @@ export class AudioEngine extends EventTarget {
    * Loads a new arrangement. Safe to call while playing: the transport keeps
    * running, so a new photo or style takes over without a gap.
    */
-  async load(arrangement, style, { anchorStep = 0 } = {}) {
+  async load(arrangement, style, { anchorStep = 0, loopOffset = 0 } = {}) {
     if (!this.#master) throw new Error('AudioEngine.init() must be called first');
     // Every load gets a ticket. Building a rig is async (the reverb is rendered),
     // so if a newer load starts meanwhile, this one must not install anything —
@@ -100,7 +100,8 @@ export class AudioEngine extends EventTarget {
       const part = new Tone.Part((time, ev) => { if (!this.mutedTracks.has(track)) play(time, ev); }, events.map((e) => ({ ...e, time: ticks(e.step) })));
       part.loop = true;
       part.loopEnd = loopEnd;
-      part.start(anchorStep ? ticks(anchorStep) : 0);   // anchorStep: the loop starts on that bar (live camera)
+      // anchorStep: the loop starts on that bar (live camera); loopOffset: …from that point of the loop
+      part.start(anchorStep ? ticks(anchorStep) : 0, loopOffset ? ticks(loopOffset % arrangement.loopSteps) : undefined);
       this.#parts.push(part);
       return part;
     };

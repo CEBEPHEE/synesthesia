@@ -56,7 +56,7 @@ const editor = initEditor({
 });
 
 fillStyleSelect(ui.styleSelect, STYLES);
-for (const c of [...SAMPLE_CREDITS, 'Tone.js by Yotam Mann and contributors (MIT)', 'mp4-muxer by Vanilagy (MIT)']) {
+for (const c of [...SAMPLE_CREDITS, 'Tone.js by Yotam Mann and contributors (MIT)', 'mp4-muxer by Vanilagy (MIT)', 'Body and hand tracking (“Follow the dancer”): MediaPipe by Google (Apache 2.0)']) {
   document.getElementById('credits').append(Object.assign(document.createElement('li'), { textContent: c }));
 }
 renderStyleLibrary(ui.library, STYLES);

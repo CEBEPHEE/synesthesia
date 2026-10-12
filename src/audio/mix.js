@@ -121,6 +121,22 @@ export const MIX = {
     "melody": 23.9,
     "master": -6.7,
     "points": 6.1
+  },
+  "electronic": {
+    "chords": 28.6,
+    "bass": 0.7,
+    "drums": -4.6,
+    "melody": 21.7,
+    "points": 6.2,
+    "master": -1
+  },
+  "brazilian-phonk": {
+    "chords": 12.8,
+    "bass": -5.2,
+    "drums": -0.1,
+    "melody": 20.4,
+    "points": 5.3,
+    "master": -2.4
   }
 };
 

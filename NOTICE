@@ -1,27 +1,34 @@
 Synesthesia — music from photos, videos and your camera
-Copyright 2026 Victoria Lisitsyna
-
 Created by Victoria Lisitsyna.
 https://github.com/cebephee/synesthesia
 
-This software is free to use, copy, modify and share, also commercially,
-under the Apache License, Version 2.0 (see the LICENSE file).
+Required Notice: Copyright 2026 Victoria Lisitsyna (lisitsynavictoria@gmail.com)
+Required Notice: Synesthesia by Victoria Lisitsyna — https://github.com/cebephee/synesthesia
+Required Notice: For commercial use, a separate paid licence is available: lisitsynavictoria@gmail.com
 
-Attribution: every copy, fork or modified version must keep this NOTICE file
-and must credit the author, for example:
+LICENCE
+This software is licensed under the PolyForm Noncommercial License 1.0.0
+(see the LICENSE file, or https://polyformproject.org/licenses/noncommercial/1.0.0).
 
-    Synesthesia by Victoria Lisitsyna
+  - Free for noncommercial use: personal projects, hobby, study, teaching,
+    research, and noncommercial organisations (charities, schools, public bodies).
+    You may read, run, copy, change and share the code for these purposes,
+    as long as you keep the LICENSE and the "Required Notice" lines above.
+  - Commercial use needs a separate paid licence: using the software or code
+    in a company, a commercial product or service, client work, advertising, or
+    anything that is sold. Write to lisitsynavictoria@gmail.com.
 
-in its documentation and, if it has a user interface, in that interface
-(for example in an "About" or "Credits" section).
+Earlier versions of this repository that were published under the Apache
+License 2.0 remain available under that licence; this licence applies to this
+version and later ones.
 
-Music, pictures and videos you make with Synesthesia are yours. The app adds
-a small "Made with Synesthesia" line to the videos and music cards it saves;
-please keep it, or credit the app when you publish them.
-
-Third-party parts keep their own licences:
+Third-party parts keep their own licences (they are not covered by the
+PolyForm licence and no payment is asked for them):
   - Tone.js (vendor/Tone.js) — MIT, Copyright (c) 2014–present Yotam Mann
   - mp4-muxer (vendor/mp4-muxer.mjs) — MIT, Copyright (c) 2023 Vanilagy
+  - MediaPipe Tasks Vision with the Pose Landmarker and Hand Landmarker models
+    (vendor/mediapipe, assets/models) — Apache 2.0, Copyright 2023 The MediaPipe
+    Authors (Google); see vendor/mediapipe/LICENSE.txt
   - Instrument recordings (assets/samples) — Creative Commons Attribution 3.0
     (CC BY 3.0): Versilian Studios VSCO 2, Karoryfer Samples, University of Iowa
     Electronic Music Studios, OLPC/Berklee Sound Library, Freesound contributors.

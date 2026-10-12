@@ -3,7 +3,7 @@
  * Everything is rendered and packed in the browser; nothing is uploaded.
  */
 import { SAMPLE_CREDITS } from '../audio/sample-library.js';
-import { APP_CREDIT, APP_URL, AUTHOR } from '../credit.js';
+import { APP_CREDIT, APP_URL, AUTHOR, CONTACT, LICENSE_NAME } from '../credit.js';
 
 export function download(blob, name) {
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name });
@@ -14,7 +14,7 @@ export function download(blob, name) {
 export function creditsText() {
   return [
     `${APP_CREDIT} — ${APP_URL}`,
-    `Synesthesia app by ${AUTHOR}, free to use under the Apache License 2.0.`,
+    `Synesthesia app by ${AUTHOR}: free for noncommercial use (${LICENSE_NAME}); commercial licence: ${CONTACT}.`,
     '',
     'Instrument recordings (Creative Commons Attribution 3.0, CC BY 3.0):',
     ...SAMPLE_CREDITS.map((c) => `  - ${c}`),

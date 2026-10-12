@@ -82,6 +82,6 @@ describe('styles → sound', () => {
     assert.ok(fs.existsSync(new URL('vendor/Tone.js', root)));
     const html = fs.readFileSync(new URL('index.html', root), 'utf8');
     assert.ok(!/cdn\.|jsdelivr|unpkg/.test(html));
-    assert.match(html, /script-src 'self';/);
+    assert.match(html, /script-src 'self'( 'wasm-unsafe-eval')?;/);
   });
 });

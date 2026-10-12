@@ -7,6 +7,10 @@
  *   transport, one beat before each bar ─► LiveConductor.decide() ─► engine.load(…, anchored on the bar)
  *
  * So the music only ever changes on the first beat of a bar and always stays in time.
+ *
+ * "Music follows": the picture (colours and shapes, steady) or my moves (body and hand
+ * tracking: the notes still come from the picture, the moves bring the layers in and
+ * out every two bars, see core/live-moves.js). Live music and recordings use the same choice.
  * The camera picture never leaves the browser.
  */
 import { STYLES, getStyle } from '../core/styles.js';
@@ -15,7 +19,11 @@ import { detectMotion, toLuma } from '../vision/motion.js';
 import { fillStyleSelect, renderStyleOptions, escapeHtml } from './panels.js';
 import { download } from './export-menu.js';
 import { thumbnail } from './session-gallery.js';
-import { drawCredit } from '../video/film-renderer.js';
+import { drawCredit, drawSkeleton } from '../video/film-renderer.js';
+import { LiveMoves, LEVEL_TEXT } from '../core/live-moves.js';
+import { applyMovementPlan } from '../core/dancer.js';
+import { loadTrackers, trackFrame } from '../vision/trackers.js';
+import { movementSample, mainBody } from '../vision/movement.js';
 
 const MAX_RECORD_SECONDS = 180;
 const MW = 48, MH = 36;                    // motion grid frame
@@ -25,6 +33,11 @@ const REASONS = {
   restyle: 'Your new setting took effect on this bar.',
   harmony: 'The colours in the picture changed and stayed that way for two bars, so the key and chords moved on.',
   melody: 'The points moved, so the melody follows them (the chords stay).',
+  moves: 'Your moves changed, so the layers changed on this bar (the notes stay).',
+};
+const HINTS = {
+  picture: 'Colours and shapes in the frame make the music. Steady and calm.',
+  moves: 'The app follows your body and hands: dance and the bass and drums come in, stand still and the music holds, raise your arms and the melody goes up. The notes still come from the picture.',
 };
 
 /**
@@ -39,8 +52,9 @@ export function initCameraStage(deps) {
     music: $('cam-music'), photo: $('cam-photo'), record: $('cam-record'), close: $('cam-close'),
     style: $('cam-style'), repick: $('cam-repick'), mood: $('cam-mood'), points: $('cam-points'),
     device: $('cam-device'), deviceWrap: $('cam-device-wrap'), mirror: $('cam-mirror'), motion: $('cam-motion'),
-    result: $('cam-result'), resultVideo: $('cam-result-video'), score: $('cam-score'), save: $('cam-save'), discard: $('cam-discard'),
-    why: $('cam-why'),
+    result: $('cam-result'), resultVideo: $('cam-result-video'), score: $('cam-score'), follow: $('cam-follow'), save: $('cam-save'), discard: $('cam-discard'),
+    why: $('cam-why'), hint: $('cam-follows-hint'),
+    follows: [...document.querySelectorAll('input[name="cam-follows"]')],
   };
   fillStyleSelect(ui.style, STYLES);
   const ctx = ui.canvas.getContext('2d');
@@ -51,6 +65,10 @@ export function initCameraStage(deps) {
   let motionPts = null, motionUntil = 0, motionLevel = 0, lastBoundary = -1, musicOn = false;
   let recorder = null, recStart = 0, recTimer = 0, recorded = null, active = false;
   let flashPoint = new Map(), lastDecision = null;
+  // following the moves
+  const moves = new LiveMoves();
+  let base = null, baseAnchor = 0, pose = null, poseAt = 0, tracking = false, trackersOk = null;
+  const following = () => ui.follows.find((r) => r.checked)?.value === 'moves';
   const setStatus = (t, err = false) => { ui.status.textContent = t; ui.status.classList.toggle('error', err); };
   const pointsChoice = () => (ui.points.value === 'default' ? undefined : ui.points.value);
 
@@ -97,7 +115,7 @@ export function initCameraStage(deps) {
     if (prevLuma) {
       const m = detectMotion(prevLuma, luma, MW, MH);
       motionLevel = motionLevel * 0.6 + m.energy * 0.4;
-      ui.motion.value = Math.min(1, motionLevel * 6);
+      if (!following()) ui.motion.value = Math.min(1, motionLevel * 6);
       if (m.energy > 0.015 && m.points.length >= 2) {
         motionPts = m.points.map((p) => {
           const i = (Math.min(MH - 1, Math.floor(p.y * MH)) * MW + Math.min(MW - 1, Math.floor(p.x * MW))) * 4;
@@ -112,9 +130,8 @@ export function initCameraStage(deps) {
     try {
       const analysis = await job;
       if (!active) return;
-      const moving = motionPts && now < motionUntil;
-      conductor.feed({ ...analysis, keypoints: moving ? motionPts : analysis.keypoints, motion: moving });
-      if (!musicOn && !lastDecision) setStatus('Ready. Press ▶ Music, then move or show colourful things to the camera.');
+      conductor.feed(analysis);
+      if (!musicOn && !lastDecision && !tracking) setStatus(following() ? 'Ready. Press ▶ Music and dance.' : 'Ready. Press ▶ Music, then show colourful things to the camera.');
     } catch (err) { console.warn(err); }
   }
 
@@ -126,8 +143,13 @@ export function initCameraStage(deps) {
     ctx.save();
     if (mirror) { ctx.translate(W, 0); ctx.scale(-1, 1); }
     ctx.drawImage(video, 0, 0, W, H);
+    if (following() && pose && performance.now() - poseAt < 500) {
+      const body = mainBody(pose.bodies);
+      drawSkeleton(ctx, { x: 0, y: 0, w: W, h: H }, { body, hands: pose.hands, speed: moves.speed }, W);
+    }
     ctx.restore();
     const now = performance.now();
+    if (following()) { if (recCtx) drawRecordingFrame(); barClock(); return; }
     const pts = lastDecision?.score ? (conductor.committed?.analysis.keypoints ?? []) : (conductor.latest?.keypoints ?? []);
     pts.forEach((p, i) => {
       const x = (mirror ? 1 - p.x : p.x) * W, y = p.y * H;
@@ -148,7 +170,10 @@ export function initCameraStage(deps) {
   }
 
   /** The music settings in use now, so a new soundtrack for the recording starts from them. */
-  const settings = () => ({ styleId: ui.style.value === 'auto' ? null : ui.style.value, mood: Number(ui.mood.value), pointsAs: ui.points.value });
+  const settings = () => ({ styleId: ui.style.value === 'auto' ? null : ui.style.value, mood: Number(ui.mood.value), pointsAs: ui.points.value, follows: following() ? 'moves' : 'picture' });
+
+  /** The arrangement as it should sound now: shaped by the moves when following them. */
+  const shaped = (d) => (following() ? applyMovementPlan(d.arrangement, moves.plan(), { hasDrums: !!d.style.drums }) : d.arrangement);
 
   function barClock() {
     const engine = getEngine();
@@ -157,16 +182,26 @@ export function initCameraStage(deps) {
     const boundary = Math.ceil((s + 0.01) / 16) * 16;
     if (boundary - s > 2 || boundary === lastBoundary) return;    // decide one beat-ish before each bar
     lastBoundary = boundary;
+    const m = following() ? moves.bar() : null;
     const d = conductor.decide();
     if (d) apply(d, boundary);
+    else if (m?.changed && base) {
+      // same notes, other layers: carry on from the same point of the loop
+      getEngine()?.load(shaped(base), base.style, { anchorStep: boundary, loopOffset: boundary - baseAnchor }).catch((e) => setStatus(e.message, true));
+      renderWhy({ ...base, kind: 'moves' });
+      setStatus(statusLine(base));
+    }
   }
+
+  const statusLine = (d) => `${d.style.name} · ${d.tempo} BPM · ${d.score.key.name} · ${d.score.chords.map((c) => c.symbol).join(' → ')}${following() ? ` · moves: ${moves.level}${moves.lift === 'high' ? ', arms up' : ''}` : ''}`;
 
   function apply(d, anchorStep) {
     lastDecision = d;
-    getEngine()?.load(d.arrangement, d.style, { anchorStep }).catch((e) => setStatus(e.message, true));
+    base = d; baseAnchor = anchorStep;
+    getEngine()?.load(shaped(d), d.style, { anchorStep }).catch((e) => setStatus(e.message, true));
     if (d.ranking) renderStyleOptions(ui.style, d.ranking);
     renderWhy(d);
-    setStatus(`${d.style.name} · ${d.tempo} BPM · ${d.score.key.name} · ${d.score.chords.map((c) => c.symbol).join(' → ')}`);
+    setStatus(statusLine(d));
   }
 
   function renderWhy(d) {
@@ -177,11 +212,18 @@ export function initCameraStage(deps) {
       <p><b>${escapeHtml(d.style.name)}</b> at <b>${d.tempo} BPM</b>, ${auto ? `chosen from what the camera saw when the music started (${top}). Press ↻ to choose again.` : 'picked by you.'}</p>
       <p>Key <b>${escapeHtml(d.score.key.name)}</b>: ${d.score.chords.map((c) => `<span class="chip" style="border-color:rgb(${c.color.r},${c.color.g},${c.color.b})">${escapeHtml(c.symbol)}</span>`).join(' ')}</p>
       <p class="muted">${escapeHtml(REASONS[d.kind] ?? '')}</p>
+      ${following() ? `<p><b>Your moves now:</b> ${escapeHtml(LEVEL_TEXT[moves.level])}${moves.lift === 'high' ? ' Arms up: the melody is an octave higher.' : ''}${moves.view ? ` <span class="muted">(seeing: ${escapeHtml(moves.view)})</span>` : ''}</p>` : ''}
       <h3>How to play it</h3>
       <ul class="small">
-        <li><b>Move</b> a hand: the moving spots become the points, so higher = higher notes (or higher drums).</li>
+        ${following() ? `
+        <li><b>Dance</b>: bass and drums come in; dance harder for everything, louder. Small moves keep only chords and melody.</li>
+        <li><b>Stand still</b> for two bars: the music holds on the chords.</li>
+        <li><b>Raise your arms</b> or open your hands: the melody goes an octave higher.</li>
+        <li>Only the upper body or just hands in the frame? That works too, fingers count.</li>
+        <li>The level changes every two bars, so the music breathes like a song instead of twitching.</li>` : `
         <li><b>Show colours</b>: hold something colourful close to the camera. If it stays for about two bars, the key and chords change to match it.</li>
-        <li>Everything changes on the first beat of a bar, so the music always stays in time.</li>
+        <li><b>Change the frame</b> (turn the camera, step aside): the bright and striking spots are the points, so higher = higher notes (or higher drums).</li>
+        <li>Everything changes on the first beat of a bar, so the music always stays in time.</li>`}
       </ul>`;
   }
 
@@ -192,7 +234,8 @@ export function initCameraStage(deps) {
     engine.stop();
     conductor.set({});                      // decide now, from the current picture
     const d = conductor.decide();
-    await engine.load(d.arrangement, d.style);
+    base = d; baseAnchor = 0;
+    await engine.load(shaped(d), d.style);
     apply(d, 0);
     lastBoundary = 0;
     musicOn = true;
@@ -223,6 +266,53 @@ export function initCameraStage(deps) {
       if (active && e.detail.state === 'started') ui.music.textContent = '■ Stop music';
     });
   }
+
+  // ── Following the moves: body + hands, about 10 times a second ──
+  async function trackLoop() {
+    if (tracking) return;
+    tracking = true;
+    let prev = null, prevT = 0;
+    try {
+      while (active && following()) {
+        const t0 = performance.now();
+        if (video?.readyState >= 2) {
+          const det = await trackFrame(video, t0);
+          if (!active || !following()) break;
+          const now = performance.now();
+          const smp = movementSample(prev, det, prev ? Math.max(0.03, (now - prevT) / 1000) : 0.1);
+          moves.push(smp);
+          pose = det; poseAt = now; prev = det; prevT = now;
+          ui.motion.value = Math.min(1, moves.speed / 1.2);
+        }
+        await new Promise((r) => setTimeout(r, Math.max(10, 90 - (performance.now() - t0))));
+      }
+    } catch (err) { console.warn(err); setStatus('Body tracking stopped working, so the music follows the picture again.', true); setFollows('picture'); }
+    tracking = false;
+  }
+
+  function setFollows(mode) {
+    for (const r of ui.follows) r.checked = r.value === mode;
+    onFollows();
+  }
+
+  async function onFollows() {
+    const on = following();
+    ui.hint.textContent = HINTS[on ? 'moves' : 'picture'];
+    ui.canvas.setAttribute('aria-label', on ? 'Camera picture with the body the app is following' : 'Camera picture with the points that play');
+    moves.reset();
+    if (on && trackersOk !== true) {
+      setStatus('Loading body tracking (about 23 MB, only the first time; it runs in this tab)…');
+      trackersOk = await loadTrackers();
+      if (!trackersOk) { setStatus('Body tracking does not work in this browser, so the music follows the picture.', true); setFollows('picture'); return; }
+      if (!active) return;
+      setStatus(musicOn ? 'Following your moves from the next bars.' : 'Ready. Press ▶ Music and dance.');
+    }
+    if (on && active) trackLoop();
+    if (!on) pose = null;
+    conductor?.set({});                     // the next bar is rebuilt with the new choice
+    if (lastDecision) renderWhy(lastDecision);
+  }
+  ui.follows.forEach((r) => r.addEventListener('change', onFollows));
 
   // ── Settings: applied on the next bar ──
   ui.style.addEventListener('input', () => conductor?.set({ styleId: ui.style.value === 'auto' ? null : ui.style.value }));
@@ -310,14 +400,19 @@ export function initCameraStage(deps) {
     ui.resultVideo.src = URL.createObjectURL(recorded.blob);
     ui.result.hidden = false;
     ui.save.textContent = recorded.withMusic ? '⬇ Save video (picture + music)' : '⬇ Save video';
-    setStatus(`Recorded ${(recorded.blob.size / 1048576).toFixed(1)} MB. It is also kept under “This session”, so you can come back to it.`);
+    const how = recorded.settings.follows === 'moves' ? ' The music in it followed your moves.' : '';
+    setStatus(`Recorded ${(recorded.blob.size / 1048576).toFixed(1)} MB.${how} It is also kept under “This session”, so you can come back to it.`);
   }
-  ui.score.addEventListener('click', () => {
+  const newSoundtrack = (follow) => {
     if (!recorded) return;
     const file = new File([recorded.blob], `camera.${recorded.ext}`, { type: recorded.blob.type });
+    ui.resultVideo.pause();
     close();
-    onVideo(file, recorded.settings);      // the soundtrack starts with the style and mood you chose
-  });
+    // the soundtrack starts with the style and mood you chose; the live music in the file is left out
+    onVideo(file, { ...recorded.settings, fromCamera: true, follow });
+  };
+  ui.score.addEventListener('click', () => newSoundtrack(false));
+  ui.follow.addEventListener('click', () => newSoundtrack(true));
   ui.save.addEventListener('click', () => {
     if (!recorded) return;
     download(recorded.blob, gallery.fileName(recorded.item));
@@ -342,7 +437,9 @@ export function initCameraStage(deps) {
     ui.style.value = 'auto'; ui.points.value = 'default'; ui.mood.value = '0';
     ui.music.textContent = '▶ Music';
     musicOn = false; lastDecision = null; lastBoundary = -1; motionPts = null; flashPoint = new Map();
-    ui.why.innerHTML = '<h3>What you hear</h3><p class="muted">Press ▶ Music to start. The camera picture never leaves this browser tab.</p>';
+    base = null; pose = null; moves.reset();
+    ui.hint.textContent = HINTS[following() ? 'moves' : 'picture'];
+    ui.why.innerHTML = '<h3>What you hear</h3><p class="muted">Choose what the music follows (the picture or your moves), then press ▶ Music. The camera picture never leaves this browser tab.</p>';
     conductor = new LiveConductor({ getStyle, mood: 0 });
     setStatus('Starting the camera…');
     try {
@@ -353,6 +450,7 @@ export function initCameraStage(deps) {
       ticker = setInterval(analyse, 250);
       cancelAnimationFrame(raf);
       raf = requestAnimationFrame(frame);
+      if (following()) onFollows();
       ui.stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
     } catch (err) {
       console.error(err);
@@ -361,6 +459,7 @@ export function initCameraStage(deps) {
   }
 
   function close() {
+    ui.resultVideo.pause();
     if (!active) return;
     active = false;
     if (recorder) stopRecording();

@@ -9,15 +9,35 @@
     instrument recordings, but cannot send anything (such as your photo) to any
     other server. Nothing is fetched from a CDN.
   -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self' blob: mediastream:; form-action 'none'; base-uri 'none'; object-src 'none'">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self' blob: mediastream:; form-action 'none'; base-uri 'none'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <title>Synesthesia — music from photos, videos and your camera</title>
-  <meta name="description" content="Turn photos, videos and your live camera into original music, right in the browser. Colours set the key, shapes and movement play the melody, the look picks the genre. Save audio, MIDI or an MP4 with its soundtrack. Nothing is uploaded.">
+  <title>Synesthesia — Photo &amp; Video to Music, Free in Your Browser</title>
+  <meta name="description" content="Free browser app that turns photos, videos and your webcam into original music. Colours set the key, shapes and movement play the melody, the look of the picture picks one of 17 genres. Save audio, MIDI or an MP4 with its soundtrack. Nothing is uploaded, and it explains every musical choice.">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/icon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
   <meta name="theme-color" content="#0f0f14">
   <link rel="stylesheet" href="styles.css">
+  <!-- SEO -->
+  <link rel="canonical" href="https://cebephee.github.io/synesthesia/">
+  <meta property="og:type" content="website">
+  <meta property="og:site_name" content="Synesthesia">
+  <meta property="og:title" content="Synesthesia — photos, videos &amp; your camera become music">
+  <meta property="og:description" content="Free browser app that turns photos, videos and your webcam into original music. Colours set the key, shapes and movement play the melody, the look of the picture picks one of 17 genres. Save audio, MIDI or an MP4 with its soundtrack. Nothing is uploaded, and it explains every musical choice.">
+  <meta property="og:url" content="https://cebephee.github.io/synesthesia/">
+  <meta property="og:image" content="https://cebephee.github.io/synesthesia/assets/og.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="Synesthesia: photos, videos and your camera become music">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Synesthesia — photos, videos &amp; your camera become music">
+  <meta name="twitter:description" content="Free browser app that turns photos, videos and your webcam into original music. Colours set the key, shapes and movement play the melody, the look of the picture picks one of 17 genres. Save audio, MIDI or an MP4 with its soundtrack. Nothing is uploaded, and it explains every musical choice.">
+  <meta name="twitter:image" content="https://cebephee.github.io/synesthesia/assets/og.png">
+  <meta name="author" content="Victoria Lisitsyna">
+  <meta name="keywords" content="photo to music, image to music, video soundtrack generator, add music to video, webcam music, generative music, sonification, music from colors, free, no upload">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "WebApplication", "name": "Synesthesia", "alternateName": "Synesthesia — photo & video to music", "url": "https://cebephee.github.io/synesthesia/", "description": "Free browser app that turns photos, videos and your webcam into original music. Colours set the key, shapes and movement play the melody, the look of the picture picks one of 17 genres. Save audio, MIDI or an MP4 with its soundtrack. Nothing is uploaded, and it explains every musical choice.", "image": "https://cebephee.github.io/synesthesia/assets/og.png", "applicationCategory": "MultimediaApplication", "operatingSystem": "Any (web browser)", "browserRequirements": "A modern browser (Chrome, Edge, Safari, Firefox)", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "USD", "description": "Free for personal and noncommercial use"}, "author": {"@type": "Person", "name": "Victoria Lisitsyna", "email": "lisitsynavictoria@gmail.com"}, "license": "https://polyformproject.org/licenses/noncommercial/1.0.0", "isAccessibleForFree": true, "featureList": ["Photo to music", "Video soundtrack generator (MP4 export)", "Slideshow with music", "Live music from a webcam", "17 music styles with real instruments", "MIDI and stems export", "Explains every musical decision", "Runs in the browser; nothing is uploaded"], "codeRepository": "https://github.com/cebephee/synesthesia"}</script>
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How do I turn a photo into music?", "acceptedAnswer": {"@type": "Answer", "text": "Open Synesthesia, press “Choose a photo or video” (or drop a photo on the page) and press Play. The app reads the photo’s colours, its most striking points and its overall look, picks a matching genre and plays a music loop made for that picture. You can change the genre, tempo and mood, or edit the points and chords."}}, {"@type": "Question", "name": "Is it free?", "acceptedAnswer": {"@type": "Answer", "text": "Yes, for personal and other noncommercial use: hobby projects, study, teaching, and sharing what you make on social media. Commercial use (in a company, a product, client work or ads) needs a paid licence from the author, Victoria Lisitsyna: lisitsynavictoria@gmail.com."}}, {"@type": "Question", "name": "Are my photos or videos uploaded anywhere?", "acceptedAnswer": {"@type": "Answer", "text": "No. Everything runs inside your browser tab: your photos, videos and camera picture never leave your device, and the page is technically blocked from sending them anywhere. There is no account and nothing is stored."}}, {"@type": "Question", "name": "Can it add music to a video automatically?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Drop a video (up to 3 minutes) or several photos. The app finds the scene changes, gives every scene its own key and chords in one continuous soundtrack, and saves an MP4 in 16:9, 9:16 (Reels, TikTok, Shorts), 1:1 or the original shape. With “Follow the dancer” the music also takes the tempo of the person in the video and gets calmer or more energetic with their moves."}}, {"@type": "Question", "name": "Can I make music with my webcam?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Press “Use camera”: choose whether the music follows the picture (colours held up to the camera change the key) or your moves (body and hand tracking: dance and the bass and drums come in, stand still and the music holds); every change lands on the beat. You can take photos or record videos with the music."}}, {"@type": "Question", "name": "Which music styles are there?", "acceptedAnswer": {"@type": "Answer", "text": "Seventeen, played with real recorded instruments: Classical Piano, Cinematic, Ambient, Shoegaze, Dream Pop, Indie Rock, Hard Rock, Pop, Synthwave, House, Jazz, Lo-fi Hip-Hop, Boom Bap, Trap, Electronic, Brazilian Phonk and Folk / Acoustic. The app suggests the style that fits the picture best and shows how well each one matches."}}, {"@type": "Question", "name": "How does it decide what the music sounds like?", "acceptedAnswer": {"@type": "Answer", "text": "With simple, explainable rules instead of a black box: the biggest colourful area picks the key (the colour wheel is laid out on the circle of fifths), brightness picks the mood, each main colour becomes a chord, and the points of interest are read left to right like notes on a staff. The “Why it sounds like this” panel explains every choice for your picture."}}, {"@type": "Question", "name": "Can I use the music in a music app?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. Save the music as a WAV file, the notes as MIDI (for GarageBand, Ableton, FL Studio or MuseScore), or each instrument group as a separate track in a ZIP."}}]}</script>
+  <!-- /SEO -->
   <script type="module" src="src/app.js"></script>
 </head>
 <body>
@@ -36,7 +56,7 @@
         <ul class="modes">
           <li><span class="mode-icon">🖼</span><span><b>A photo</b> becomes a music loop you can play, edit and save as audio, MIDI, a music card or a short video.</span></li>
           <li><span class="mode-icon">🎬</span><span><b>Several photos or a video</b> get a whole soundtrack that changes with every scene, saved as an MP4 for Reels, TikTok or YouTube.</span></li>
-          <li><span class="mode-icon">📷</span><span><b>Your camera</b> plays live: movement plays the melody, colours change the key. Take photos or record videos with the music.</span></li>
+          <li><span class="mode-icon">📷</span><span><b>Your camera</b> plays live: the music follows the picture or your dance moves. Take photos or record videos with the music.</span></li>
         </ul>
         <div class="privacy">🔒 Everything happens in this browser tab: your photos, videos and camera are never uploaded.</div>
       </div>
@@ -145,6 +165,10 @@
         <div class="canvas-wrap"><canvas id="film-canvas" width="640" height="360" aria-label="Preview of your video"></canvas></div>
         <p id="film-status" role="status" aria-live="polite"></p>
         <div id="film-scenes" class="film-scenes" aria-label="Scenes"></div>
+        <div id="film-plan-wrap" class="film-plan-wrap" hidden>
+          <canvas id="film-plan" class="film-plan" height="64" aria-label="How the music follows the dancer"></canvas>
+          <div class="plan-legend small"><span class="lg still"></span>still <span class="lg calm"></span>calm <span class="lg groove"></span>groove <span class="lg peak"></span>peak <span class="lg acc"></span>big move ↑ arms up</div>
+        </div>
 
         <div class="transport">
           <button id="film-play" class="primary" disabled>▶ Play</button>
@@ -172,6 +196,7 @@
           <label>Framing <select id="film-fit"><option value="fit">Fit (whole picture)</option><option value="fill">Fill (crop)</option></select></label>
           <label><input id="film-overlay" type="checkbox" checked> Show points</label>
           <label id="film-original-wrap" hidden><input id="film-original" type="checkbox"> Keep the video's own sound (quietly)</label>
+          <button id="film-dancer" type="button" hidden aria-pressed="false" title="Watches the person in the video once (whole body, half body or just the hands) and shapes the music to the moves: their tempo, calm and energetic parts, and the biggest moves. The notes still come from the picture.">🕺 Follow the dancer</button>
         </div>
         <div id="film-progress" class="film-progress" hidden>
           <progress id="film-bar" max="1" value="0"></progress>
@@ -196,6 +221,12 @@
           <div id="cam-rec-badge" class="rec-badge" hidden>● REC 0:00</div>
         </div>
         <p id="cam-status" role="status" aria-live="polite"></p>
+        <div class="cam-follows" role="radiogroup" aria-label="What the music follows">
+          <span class="cam-follows-label">Music follows</span>
+          <label><input type="radio" name="cam-follows" value="picture" checked><span>🖼 The picture</span></label>
+          <label><input type="radio" name="cam-follows" value="moves"><span>🕺 My moves</span></label>
+          <span id="cam-follows-hint" class="muted small">Colours and shapes in the frame make the music. Steady and calm.</span>
+        </div>
         <div class="transport">
           <button id="cam-music" class="primary">▶ Music</button>
           <button id="cam-photo" title="Takes a photo and opens it with its music">📸 Take photo</button>
@@ -219,20 +250,34 @@
         <div id="cam-result" class="cam-result" hidden>
           <video id="cam-result-video" controls playsinline></video>
           <div class="cam-result-actions">
-            <button id="cam-score" class="primary" type="button">🎬 Make a new soundtrack (MP4)</button>
+            <button id="cam-follow" class="primary" type="button" title="Opens the recording, follows your body and hands, and composes a soundtrack in time with your moves">🕺 Soundtrack that follows my moves</button>
+            <button id="cam-score" type="button">🎬 Make a new soundtrack (MP4)</button>
             <button id="cam-save" type="button">⬇ Save the recording</button>
             <button id="cam-discard" type="button">Close</button>
           </div>
-          <p class="muted small">The video has the picture and the music you heard. “Make music for this video” composes a new soundtrack scene by scene and exports an MP4. The recording also stays under “This session” until you close the tab.</p>
+          <p class="muted small">The video has the picture and the music you heard live. “Soundtrack that follows my moves” watches your body and hands in the recording and composes new music in time with them; “Make a new soundtrack” composes from the picture only. Both replace the live music and export an MP4. The recording also stays under “This session” until you close the tab.</p>
         </div>
       </div>
       <aside class="card" id="cam-why"></aside>
     </section>
+    <section id="faq" class="faq card" aria-labelledby="faq-title">
+      <h2 id="faq-title">Questions</h2>
+      <details><summary>How do I turn a photo into music?</summary><p>Open Synesthesia, press “Choose a photo or video” (or drop a photo on the page) and press Play. The app reads the photo’s colours, its most striking points and its overall look, picks a matching genre and plays a music loop made for that picture. You can change the genre, tempo and mood, or edit the points and chords.</p></details>
+      <details><summary>Is it free?</summary><p>Yes, for personal and other noncommercial use: hobby projects, study, teaching, and sharing what you make on social media. Commercial use (in a company, a product, client work or ads) needs a paid licence from the author, Victoria Lisitsyna: lisitsynavictoria@gmail.com.</p></details>
+      <details><summary>Are my photos or videos uploaded anywhere?</summary><p>No. Everything runs inside your browser tab: your photos, videos and camera picture never leave your device, and the page is technically blocked from sending them anywhere. There is no account and nothing is stored.</p></details>
+      <details><summary>Can it add music to a video automatically?</summary><p>Yes. Drop a video (up to 3 minutes) or several photos. The app finds the scene changes, gives every scene its own key and chords in one continuous soundtrack, and saves an MP4 in 16:9, 9:16 (Reels, TikTok, Shorts), 1:1 or the original shape. With “Follow the dancer” the music also takes the tempo of the person in the video and gets calmer or more energetic with their moves.</p></details>
+      <details><summary>Can I make music with my webcam?</summary><p>Yes. Press “Use camera”: choose whether the music follows the picture (colours held up to the camera change the key) or your moves (body and hand tracking: dance and the bass and drums come in, stand still and the music holds); every change lands on the beat. You can take photos or record videos with the music.</p></details>
+      <details><summary>Which music styles are there?</summary><p>Seventeen, played with real recorded instruments: Classical Piano, Cinematic, Ambient, Shoegaze, Dream Pop, Indie Rock, Hard Rock, Pop, Synthwave, House, Jazz, Lo-fi Hip-Hop, Boom Bap, Trap, Electronic, Brazilian Phonk and Folk / Acoustic. The app suggests the style that fits the picture best and shows how well each one matches.</p></details>
+      <details><summary>How does it decide what the music sounds like?</summary><p>With simple, explainable rules instead of a black box: the biggest colourful area picks the key (the colour wheel is laid out on the circle of fifths), brightness picks the mood, each main colour becomes a chord, and the points of interest are read left to right like notes on a staff. The “Why it sounds like this” panel explains every choice for your picture.</p></details>
+      <details><summary>Can I use the music in a music app?</summary><p>Yes. Save the music as a WAV file, the notes as MIDI (for GarageBand, Ableton, FL Studio or MuseScore), or each instrument group as a separate track in a ZIP.</p></details>
+      <p class="muted small">More: <a href="photo-to-music.html">Photo to music</a> · <a href="video-soundtrack.html">Soundtracks for videos</a> · <a href="webcam-music.html">Music from your webcam</a></p>
+    </section>
   </main>
 
   <footer class="site-footer">
-    <span><b>Synesthesia</b></span>
-    <span class="muted">Free to use under the Apache License 2.0.</span>
+    <span><b>Synesthesia</b>, made by <b>Victoria Lisitsyna</b></span>
+    <span class="muted">Free for noncommercial use (PolyForm Noncommercial 1.0.0)</span>
+    <span class="muted">Commercial licence: <a href="mailto:lisitsynavictoria@gmail.com">lisitsynavictoria@gmail.com</a></span>
     <a href="https://github.com/cebephee/synesthesia" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
   </footer>
 
@@ -249,7 +294,7 @@
           <li><b>Photo fingerprint:</b> eight values from 0 to 1: brightness, contrast, saturation, colourfulness, warmth, sharpness, texture and complexity.</li>
         </ul>
       </li>
-      <li><b>Pick a style.</b> Each of the 15 styles has a target fingerprint (Shoegaze likes blurry, warm, glowing photos; Trap likes very dark, cold ones…). The style whose target is closest to your photo wins. You can always pick another one by hand.</li>
+      <li><b>Pick a style.</b> Each of the 17 styles has a target fingerprint (Shoegaze likes blurry, warm, glowing photos; Trap likes very dark, cold ones…). The style whose target is closest to your photo wins. You can always pick another one by hand.</li>
       <li><b>Find the key.</b> The hue of the biggest colourful area picks the root note. The colour wheel is laid out on the circle of fifths, so similar colours give related keys. Brightness picks the mood (Lydian, major … minor, Phrygian), and the style can push it brighter or darker.</li>
       <li><b>Build the chords.</b> Each main colour becomes a chord: its hue angle from the key colour picks the scale degree, its share of the frame sets how long it lasts. The style decides the chord type: triads, sevenths, add9, power chords… Tightly clustered points add an extra colour tone.</li>
       <li><b>Lead the voices.</b> Every chord is voiced as close as possible to the previous one, and two neighbouring voices are never allowed to clash a semitone apart.</li>
@@ -262,7 +307,8 @@
       <li><b>⬇ Export</b>: the full mix as WAV, the notes as MIDI, or separate instrument tracks (stems) plus MIDI in a ZIP, for any music app.</li>
       <li><b>Mood</b>: moves the key one or two steps darker or brighter without changing anything else.</li>
       <li><b>✎ Edit</b>: drag the points, add or remove them, and pick another chord for any colour. ★ marks chords that will sound smooth, and the harmony check warns about choices that may sound rough.</li>
-            <li><b>Camera</b>: live music from your webcam. Moving hands play the points, colours held in front of the camera change the key (after two bars, so the music never twitches). You can also take a photo or record a video right in the app.</li>
+            <li><b>Camera</b>: live music from your webcam. Choose “Music follows: the picture” (colours held in front of the camera change the key) or “my moves” (your body and hands are tracked in this tab: dancing brings in bass and drums, dancing hard makes it louder, standing still holds the chords, raised arms lift the melody; the notes still come from the picture). Key changes wait two bars, so the music never twitches. You can also take a photo or record a video right in the app.</li>
+      <li><b>🕺 Follow the dancer</b> (videos): the app watches the person once, the whole body, half a body or just the hands and fingers. The notes still come from the picture, but the movement shapes the song: the music takes the dancer's tempo and starts on their beat, every 4 bars it gets calmer or more energetic with the moves (calm: chords and melody; groove: bass and drums join; peak: everything, louder), raised arms or open hands lift the melody an octave, standing still makes the music hold, and the biggest moves get a cymbal. The tracker (MediaPipe, Apache 2.0) runs in this tab and downloads once, about 23 MB, the first time.</li>
       <li><b>Slideshows and videos</b>: drop several photos or a video. One style and tempo carry the whole film, each photo or scene gets its own chords, and the music changes exactly when the picture does. Export as MP4 for YouTube, Reels or TikTok.</li>
     </ul>
 
@@ -273,7 +319,7 @@
     <div id="style-library"></div>
 
     <h3>Credits</h3>
-    <p>Synesthesia is free to use under the Apache License 2.0 (see LICENSE and NOTICE on GitHub). Videos and music cards saved from the app carry a small “Made with Synesthesia” line.</p>
+    <p>Synesthesia is free for personal and other noncommercial use under the PolyForm Noncommercial License 1.0.0 (see LICENSE and NOTICE on GitHub), including sharing what you make on social media. Commercial use (in a company, a product, client work, ads or anything sold) needs a paid licence: <a href="mailto:lisitsynavictoria@gmail.com">lisitsynavictoria@gmail.com</a>. Videos and music cards saved from the app carry a small “Made with Synesthesia” line.</p>
     <p class="muted small">Instrument recordings are used under the Creative Commons Attribution 3.0 licence (CC BY 3.0); audio engine: Tone.js (MIT); MP4 packing: mp4-muxer (MIT).</p>
     <ul id="credits" class="credits small"></ul>
   </dialog>

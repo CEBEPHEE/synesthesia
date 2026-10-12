@@ -172,6 +172,12 @@ export const CHORD_INSTRUMENTS = {
   rockGuitar: (Tone) => guitarRig(Tone, { drive: 0.85, cab: 4200, volume: -22 }),
   fuzzGuitar: (Tone) => guitarRig(Tone, { drive: 0.65, cab: 3200, volume: -20 }),
   // synthetic on purpose
+  // electronic: a short, bright pluck for 16th-note arpeggios
+  pluck: async (Tone) => synthWithFilter(Tone, new Tone.PolySynth(Tone.Synth, {
+    oscillator: { type: 'fatsawtooth', count: 2, spread: 12 }, envelope: { attack: 0.002, decay: 0.16, sustain: 0.05, release: 0.12 }, volume: -22,
+  }), 3600),
+  // phonk: a dark, filtered pad that stays out of the cowbell's way
+  darkPad: async (Tone) => synthWithFilter(Tone, fat(Tone, 3, 14, { attack: 0.6, decay: 0.4, sustain: 0.7, release: 2 }, -27), 900),
   pad: async (Tone) => synthWithFilter(Tone, fat(Tone, 3, 18, { attack: 1.2, decay: 0.4, sustain: 0.8, release: 3 }, -24), 1400),
   supersaw: async (Tone) => synthWithFilter(Tone, fat(Tone, 7, 40, { attack: 0.05, decay: 0.3, sustain: 0.8, release: 1.2 }, -27), 4500),
 };
@@ -197,6 +203,12 @@ export const MELODY_INSTRUMENTS = {
   // like a held tremolo arm, through fuzz and chorus, with a quiet octave on top,
   // and the style's huge reverb does the rest.
   glideGuitar: (Tone) => glideGuitar(Tone),
+  // electronic: a detuned saw lead (the style adds a dotted-8th echo)
+  sawLead: async (Tone) => synthWithFilter(Tone, new Tone.Synth({
+    oscillator: { type: 'fatsawtooth', count: 3, spread: 18 }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.5, release: 0.25 }, volume: -24,
+  }), 5000),
+  // Brazilian phonk: the TR-808-style cowbell, tuned to the melody (two square waves a fifth-ish apart through a band-pass)
+  cowbell: async (Tone) => cowbell(Tone),
   // synthetic on purpose (synthwave)
   square: async (Tone) => synthWithFilter(Tone, new Tone.Synth({
     oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 0.5 }, volume: -22,
@@ -218,6 +230,25 @@ async function glideGuitar(Tone) {
     }
   };
   return wrap([s, fuzz, tone, wobble, chorus], chorus, play, s);
+}
+
+async function cowbell(Tone) {
+  const bp = new Tone.Filter({ frequency: 2600, type: 'bandpass', Q: 1.2 });
+  const hp = new Tone.Filter({ frequency: 400, type: 'highpass' });
+  const out = new Tone.Gain(0.9);
+  bp.connect(hp); hp.connect(out);
+  const env = { attack: 0.001, decay: 0.28, sustain: 0, release: 0.05 };
+  const a = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'square' }, envelope: env, volume: -14 }).connect(bp);
+  const b = new Tone.PolySynth(Tone.Synth, { oscillator: { type: 'square' }, envelope: env, volume: -16 }).connect(bp);
+  const play = (time, ev) => {
+    for (const m of ev.notes) {
+      const f = midiToHz(m);
+      a.triggerAttackRelease(f, 0.25, time, ev.vel);
+      b.triggerAttackRelease(f * 1.48, 0.25, time, ev.vel);      // the classic 808 cowbell interval (≈ 540 / 800 Hz)
+    }
+  };
+  const release = () => { a.releaseAll(); b.releaseAll(); };
+  return { output: out, play, release, dispose: () => [a, b, bp, hp, out].forEach((n) => n.dispose()) };
 }
 
 // ─── Bass instruments ───────────────────────────────────────────────────────
