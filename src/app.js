@@ -14,6 +14,7 @@ import { initEditor } from './ui/editor.js';
 import { CanvasRenderer } from './ui/canvas-renderer.js';
 import { initVideoStage } from './ui/video-stage.js';
 import { initCameraStage } from './ui/camera-stage.js';
+import { initGallery } from './ui/session-gallery.js';
 import {
   renderWhyPanel, renderNumbersPanel, renderChordStrip, renderVoiceGraph,
   setActiveChord, renderStyleLibrary, fillStyleSelect, renderStyleOptions,
@@ -148,12 +149,39 @@ async function processSource(image) {
 
 async function handleFile(file) {
   try {
-    await processSource(await loadImageFile(file));
+    await openPhoto(await loadImageFile(file));
   } catch (err) {
     ui.stage.hidden = false;
     setStatus(err.message, true);
   }
 }
+
+// ── Going back: every photo, film or camera visit is a step in the browser history ──
+// The browser's Back button (or the mouse/trackpad back gesture) returns to the
+// previous photo, slideshow, video or the camera; the pictures are kept in memory.
+const visits = new Map();
+let visitSeq = 0, navigating = false;
+function remember(entry) {
+  if (navigating) return;
+  const id = ++visitSeq;
+  visits.set(id, entry);
+  history.pushState({ visit: id }, '');
+}
+window.addEventListener('popstate', async (e) => {
+  const entry = visits.get(e.state?.visit);
+  navigating = true;
+  try {
+    if (!entry) { film.close(); camera.close(); leavePhotoMode(); state.engine?.stop({ hard: true }); }
+    else if (entry.mode === 'photo') await processSource(entry.image);
+    else if (entry.mode === 'slides') await film.openSlides(entry.files);
+    else if (entry.mode === 'video') await film.openVideo(entry.file, entry.opts);
+    else if (entry.mode === 'camera') await camera.open();
+  } finally { navigating = false; }
+});
+const openPhoto = (image) => { remember({ mode: 'photo', image }); return processSource(image); };
+const openSlides = (files) => { remember({ mode: 'slides', files }); return film.openSlides(files); };
+const openVideo = (file, opts) => { remember({ mode: 'video', file, opts }); return film.openVideo(file, opts); };
+const openCamera = () => { remember({ mode: 'camera' }); return camera.open(); };
 
 // ── Film mode: several photos → slideshow, a video → scored video ──
 const film = initVideoStage({
@@ -179,10 +207,18 @@ const camera = initCameraStage({
   ensureEngine: () => ensureEngine(),
   getEngine: () => state.engine,
   onOpen: () => { film.close(); leavePhotoMode(); },
-  onPhoto: async (bitmap) => { await processSource(bitmap); setStatus(`${statusLine()} · Save the photo: ⬇ Export → Photo`); },
-  onVideo: (file) => film.openVideo(file),
+  onPhoto: async (bitmap) => { await openPhoto(bitmap); setStatus(`${statusLine()} · The photo is kept under “This session”; ⬇ Save → Photo saves it.`); },
+  onVideo: (file, opts) => openVideo(file, opts),
+  get gallery() { return gallery; },
 });
-$('camera-btn').addEventListener('click', (e) => { e.stopPropagation(); camera.open(); });
+
+const gallery = initGallery({
+  root: $('gallery'),
+  onUsePhoto: (bitmap) => openPhoto(bitmap),
+  onUseVideo: (file, opts) => openVideo(file, opts),
+});
+$('choose-btn').addEventListener('click', (e) => { e.stopPropagation(); ui.input.click(); });
+$('camera-btn').addEventListener('click', (e) => { e.stopPropagation(); openCamera(); });
 $('cam-close').addEventListener('click', () => camera.close());
 
 /** One photo → photo mode; several photos → slideshow; a video → video mode. */
@@ -190,8 +226,8 @@ function handleFiles(list) {
   const files = [...list];
   const video = files.find((f) => f.type.startsWith('video/'));
   const images = files.filter((f) => f.type.startsWith('image/'));
-  if (video) film.openVideo(video);
-  else if (images.length > 1) film.openSlides(images);
+  if (video) openVideo(video);
+  else if (images.length > 1) openSlides(images);
   else if (images.length === 1) handleFile(images[0]);
   else if (files.length) { ui.stage.hidden = false; setStatus('That file is not a photo or a video.', true); }
 }
@@ -325,5 +361,5 @@ ui.demo.addEventListener('click', async () => {
   g.fillStyle = sky; g.fillRect(0, 0, 960, 600);
   const blobs = [[180, 380, 70, '#2f6b4f'], [420, 210, 46, '#f6e27f'], [640, 420, 90, '#7a3b6e'], [820, 160, 38, '#e9f1f7']];
   for (const [x, y, r, col] of blobs) { g.fillStyle = col; g.beginPath(); g.arc(x, y, r, 0, Math.PI * 2); g.fill(); }
-  await processSource(await createImageBitmap(c));
+  await openPhoto(await createImageBitmap(c));
 });

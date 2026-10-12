@@ -14,6 +14,8 @@ import { LiveConductor } from '../core/live.js';
 import { detectMotion, toLuma } from '../vision/motion.js';
 import { fillStyleSelect, renderStyleOptions, escapeHtml } from './panels.js';
 import { download } from './export-menu.js';
+import { thumbnail } from './session-gallery.js';
+import { drawCredit } from '../video/film-renderer.js';
 
 const MAX_RECORD_SECONDS = 180;
 const MW = 48, MH = 36;                    // motion grid frame
@@ -28,7 +30,9 @@ const REASONS = {
 /**
  * @param {{analyzer, ensureEngine, getEngine, onOpen, onPhoto: (ImageBitmap) => void, onVideo: (File) => void}} deps
  */
-export function initCameraStage({ analyzer, ensureEngine, getEngine, onOpen, onPhoto, onVideo }) {
+export function initCameraStage(deps) {
+  const { analyzer, ensureEngine, getEngine, onOpen, onPhoto, onVideo } = deps;
+  const gallery = { add: (...a) => deps.gallery.add(...a), markSaved: (...a) => deps.gallery.markSaved(...a), fileName: (...a) => deps.gallery.fileName(...a) };
   const $ = (id) => document.getElementById(id);
   const ui = {
     stage: $('camera-stage'), canvas: $('cam-canvas'), status: $('cam-status'), flash: $('cam-flash'), badge: $('cam-rec-badge'),
@@ -47,7 +51,6 @@ export function initCameraStage({ analyzer, ensureEngine, getEngine, onOpen, onP
   let motionPts = null, motionUntil = 0, motionLevel = 0, lastBoundary = -1, musicOn = false;
   let recorder = null, recStart = 0, recTimer = 0, recorded = null, active = false;
   let flashPoint = new Map(), lastDecision = null;
-
   const setStatus = (t, err = false) => { ui.status.textContent = t; ui.status.classList.toggle('error', err); };
   const pointsChoice = () => (ui.points.value === 'default' ? undefined : ui.points.value);
 
@@ -124,16 +127,28 @@ export function initCameraStage({ analyzer, ensureEngine, getEngine, onOpen, onP
     if (mirror) { ctx.translate(W, 0); ctx.scale(-1, 1); }
     ctx.drawImage(video, 0, 0, W, H);
     ctx.restore();
-    const pts = lastDecision?.score ? (conductor.committed?.analysis.keypoints ?? []) : (conductor.latest?.keypoints ?? []);
     const now = performance.now();
+    const pts = lastDecision?.score ? (conductor.committed?.analysis.keypoints ?? []) : (conductor.latest?.keypoints ?? []);
     pts.forEach((p, i) => {
       const x = (mirror ? 1 - p.x : p.x) * W, y = p.y * H;
       const glow = Math.exp(-(now - (flashPoint.get(i) ?? -1e9)) / 250);
       ctx.beginPath(); ctx.arc(x, y, 7 + 10 * glow, 0, Math.PI * 2);
       ctx.strokeStyle = `rgba(255,214,102,${0.45 + 0.55 * glow})`; ctx.lineWidth = 3; ctx.stroke();
     });
+    if (recCtx) drawRecordingFrame();
     barClock();
   }
+
+  // What gets recorded: the camera picture (not mirrored, like a normal video)
+  // with the small credit line in the corner. The music is added as the sound track.
+  let recCanvas = null, recCtx = null;
+  function drawRecordingFrame() {
+    recCtx.drawImage(video, 0, 0, recCanvas.width, recCanvas.height);
+    drawCredit(recCtx);
+  }
+
+  /** The music settings in use now, so a new soundtrack for the recording starts from them. */
+  const settings = () => ({ styleId: ui.style.value === 'auto' ? null : ui.style.value, mood: Number(ui.mood.value), pointsAs: ui.points.value });
 
   function barClock() {
     const engine = getEngine();
@@ -171,23 +186,30 @@ export function initCameraStage({ analyzer, ensureEngine, getEngine, onOpen, onP
   }
 
   // ── Music on/off ──
+  async function startMusic() {
+    const engine = await ensureEngine();
+    listen(engine);
+    engine.stop();
+    conductor.set({});                      // decide now, from the current picture
+    const d = conductor.decide();
+    await engine.load(d.arrangement, d.style);
+    apply(d, 0);
+    lastBoundary = 0;
+    musicOn = true;
+    engine.play();
+    ui.music.textContent = '■ Stop music';
+    return engine;
+  }
+
   ui.music.addEventListener('click', async () => {
     if (!conductor?.ready) { setStatus('Waiting for the first picture from the camera…'); return; }
     try {
-      const engine = await ensureEngine();
-      listen(engine);
-      if (musicOn && engine.state === 'started') {
+      const engine = getEngine();
+      if (musicOn && engine?.state === 'started') {
+        if (recorder) { setStatus('The music is part of the recording: stop the recording first.'); return; }
         engine.stop(); musicOn = false; ui.music.textContent = '▶ Music'; return;
       }
-      engine.stop();
-      conductor.set({});                      // decide now, from the current picture
-      const d = conductor.decide();
-      await engine.load(d.arrangement, d.style);
-      apply(d, 0);
-      lastBoundary = 0;
-      musicOn = true;
-      engine.play();
-      ui.music.textContent = '■ Music';
+      await startMusic();
     } catch (err) { setStatus(`Audio is unavailable: ${err.message}`, true); }
   });
 
@@ -198,6 +220,7 @@ export function initCameraStage({ analyzer, ensureEngine, getEngine, onOpen, onP
     engine.addEventListener('note', (e) => { if (active) flashPoint.set(e.detail.pointIndex, performance.now()); });
     engine.addEventListener('state', (e) => {
       if (active && e.detail.state !== 'started' && musicOn) { musicOn = false; ui.music.textContent = '▶ Music'; }
+      if (active && e.detail.state === 'started') ui.music.textContent = '■ Stop music';
     });
   }
 
@@ -218,26 +241,48 @@ export function initCameraStage({ analyzer, ensureEngine, getEngine, onOpen, onP
     if (ui.mirror.checked) { g.translate(c.width, 0); g.scale(-1, 1); }
     g.drawImage(video, 0, 0);
     const bitmap = await createImageBitmap(c);
+    const jpeg = await c.convertToBlob({ type: 'image/jpeg', quality: 0.92 });
+    gallery.add({ kind: 'photo', blob: jpeg, thumb: await thumbnail(bitmap) });
     setTimeout(() => { close(); onPhoto(bitmap); }, 250);
   });
 
   // ── Record a video (with the live music, if it is playing) ──
   ui.record.addEventListener('click', () => (recorder ? stopRecording() : startRecording()));
 
-  function startRecording() {
+  async function startRecording() {
     if (!stream || typeof MediaRecorder === 'undefined') { setStatus('This browser cannot record video.', true); return; }
-    const tracks = [...stream.getVideoTracks()];
-    const music = musicOn ? getEngine()?.outputStream() : null;
+    // the music is recorded with the picture: start it if it is not playing yet
+    let engine = getEngine();
+    if (!musicOn || engine?.state !== 'started') {
+      if (!conductor?.ready) { setStatus('Waiting for the first picture from the camera…'); return; }
+      try { engine = await startMusic(); } catch (err) { setStatus(`Audio is unavailable: ${err.message}`, true); return; }
+    }
+    const scale = Math.min(1, 1280 / Math.max(video.videoWidth, video.videoHeight));
+    recCanvas = Object.assign(document.createElement('canvas'), {
+      width: Math.round((video.videoWidth * scale) / 2) * 2, height: Math.round((video.videoHeight * scale) / 2) * 2,
+    });
+    recCtx = recCanvas.getContext('2d', { alpha: false });
+    drawRecordingFrame();
+    const tracks = [...recCanvas.captureStream(30).getVideoTracks()];
+    const music = engine?.outputStream();
+    const used = settings();
     if (music) tracks.push(...music.getAudioTracks());
     const type = ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'video/mp4', 'video/webm;codecs=vp9,opus', 'video/webm;codecs=vp8,opus', 'video/webm']
       .find((t) => MediaRecorder.isTypeSupported(t)) ?? '';
     const parts = [];
-    recorder = new MediaRecorder(new MediaStream(tracks), type ? { mimeType: type, videoBitsPerSecond: 5e6 } : {});
+    const thumb = await thumbnail(video);
+    recorder = new MediaRecorder(new MediaStream(tracks), type ? { mimeType: type, videoBitsPerSecond: 5e6, audioBitsPerSecond: 192_000 } : {});
     recorder.ondataavailable = (e) => e.data.size && parts.push(e.data);
     recorder.onstop = () => {
       const mime = recorder.mimeType || type || 'video/webm';
-      recorded = { blob: new Blob(parts, { type: mime.split(';')[0] }), ext: mime.includes('mp4') ? 'mp4' : 'webm', withMusic: !!music };
+      const blob = new Blob(parts, { type: mime.split(';')[0] });
+      const ext = mime.includes('mp4') ? 'mp4' : 'webm';
+      const seconds = (performance.now() - recStart) / 1000;
+      // kept in "This session" right away, so nothing is lost when you switch to something else
+      const item = gallery.add({ kind: 'video', blob, thumb, seconds, withMusic: !!music, ext, settings: used });
+      recorded = { blob, ext, withMusic: !!music, item, settings: used };
       recorder = null;
+      recCanvas = null; recCtx = null;
       showResult();
     };
     recorder.start(1000);
@@ -255,7 +300,7 @@ export function initCameraStage({ analyzer, ensureEngine, getEngine, onOpen, onP
   function stopRecording() {
     clearInterval(recTimer);
     ui.badge.hidden = true;
-    ui.record.textContent = '● Record video';
+    ui.record.textContent = '● Record video with music';
     ui.record.classList.remove('recording');
     if (recorder?.state === 'recording') recorder.stop();
   }
@@ -264,16 +309,20 @@ export function initCameraStage({ analyzer, ensureEngine, getEngine, onOpen, onP
     if (ui.resultVideo.src) URL.revokeObjectURL(ui.resultVideo.src);
     ui.resultVideo.src = URL.createObjectURL(recorded.blob);
     ui.result.hidden = false;
-    ui.save.textContent = recorded.withMusic ? '⬇ Save with the live music' : '⬇ Save the recording';
-    setStatus(`Recorded ${(recorded.blob.size / 1048576).toFixed(1)} MB.`);
+    ui.save.textContent = recorded.withMusic ? '⬇ Save video (picture + music)' : '⬇ Save video';
+    setStatus(`Recorded ${(recorded.blob.size / 1048576).toFixed(1)} MB. It is also kept under “This session”, so you can come back to it.`);
   }
   ui.score.addEventListener('click', () => {
     if (!recorded) return;
     const file = new File([recorded.blob], `camera.${recorded.ext}`, { type: recorded.blob.type });
     close();
-    onVideo(file);
+    onVideo(file, recorded.settings);      // the soundtrack starts with the style and mood you chose
   });
-  ui.save.addEventListener('click', () => recorded && download(recorded.blob, `synesthesia-camera-${new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')}.${recorded.ext}`));
+  ui.save.addEventListener('click', () => {
+    if (!recorded) return;
+    download(recorded.blob, gallery.fileName(recorded.item));
+    gallery.markSaved(recorded.item);
+  });
   ui.discard.addEventListener('click', () => { recorded = null; ui.result.hidden = true; URL.revokeObjectURL(ui.resultVideo.src); ui.resultVideo.removeAttribute('src'); });
 
   function cameraError(err) {

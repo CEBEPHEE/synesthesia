@@ -49,7 +49,7 @@ export const INSTRUMENT_NAMES = {
   piano: 'acoustic piano', strings: 'cello and violin section', acousticGuitar: 'fingerpicked steel-string acoustic guitar',
   nylonGuitar: 'nylon-string classical guitar', harp: 'concert harp', cleanGuitar: 'clean electric guitars with chorus (left and right)',
   crunchGuitar: 'two crunchy strummed electric guitars (left and right)', rockGuitar: 'two double-tracked high-gain electric guitars (left and right)',
-  fuzzGuitar: 'fuzz electric guitars', saxophone: 'saxophone', flute: 'flute', violin: 'fiddle (violin)', horn: 'French horn',
+  fuzzGuitar: 'fuzz electric guitars', glideGuitar: '“glide guitar” (swelling, slowly bending fuzz guitar)', saxophone: 'saxophone', flute: 'flute', violin: 'fiddle (violin)', horn: 'French horn',
   xylophone: 'xylophone', guitarLead: 'overdriven lead guitar',
   electricBass: 'electric bass guitar', rockBass: 'overdriven bass guitar', upright: 'mellow upright-style bass', contrabass: 'bowed contrabass',
   // synthesised on purpose

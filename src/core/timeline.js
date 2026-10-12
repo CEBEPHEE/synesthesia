@@ -130,3 +130,15 @@ export function sectionAt(timeline, seconds) {
   for (let i = s.length - 1; i >= 0; i--) if (seconds >= s[i].startSec) return i;
   return 0;
 }
+
+/**
+ * One photo's loop repeated `loops` times as one long arrangement (for a video of a
+ * single photo). Events get section 0 so the video renderer can light the points.
+ */
+export function loopArrangement(arrangement, loops) {
+  const L = arrangement.loopSteps;
+  const tracks = Object.fromEntries(Object.entries(arrangement.tracks).map(([t, evs]) => [t,
+    Array.from({ length: loops }, (_, k) => evs.map((e) => ({ ...e, step: e.step + k * L, section: 0 }))).flat()]));
+  const segments = Array.from({ length: loops }, (_, k) => arrangement.segments.map((g) => ({ ...g, startStep: g.startStep + k * L, section: 0 }))).flat();
+  return { ...arrangement, tracks, segments, loopSteps: L * loops, loopBars: (L * loops) / 16 };
+}

@@ -12,6 +12,7 @@
  */
 import { fitRect } from './scenes.js';
 import { stepsToSeconds } from '../core/timeline.js';
+import { APP_CREDIT } from '../credit.js';
 
 const FADE = 0.6;          // seconds of cross-fade between slides
 const ZOOM = 0.07;         // how far the Ken Burns move zooms
@@ -67,13 +68,34 @@ function drawPoints(ctx, rect, analysis, hits, t, W) {
   });
 }
 
+/** The small "Made with Synesthesia" line in the corner of every video. */
+export function drawCredit(ctx, W = ctx.canvas.width, H = ctx.canvas.height) {
+  const size = Math.max(11, Math.round(Math.min(W, H) / 42));
+  ctx.save();
+  ctx.globalAlpha = 1;
+  ctx.font = `600 ${size}px Inter, system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.textAlign = 'right';
+  ctx.textBaseline = 'bottom';
+  ctx.shadowColor = 'rgba(0,0,0,.75)';
+  ctx.shadowBlur = size / 3;
+  ctx.fillStyle = 'rgba(255,255,255,.82)';
+  ctx.fillText(APP_CREDIT, W - size * 0.9, H - size * 0.7);
+  ctx.restore();
+}
+
 /**
  * @param {CanvasRenderingContext2D|OffscreenCanvasRenderingContext2D} ctx
  * @param {object} film  { kind: 'slides'|'video', items: [{image, analysis}], video?, timeline, hits }
  * @param {number} t     seconds from the start of the film
  * @param {{fit?: 'fit'|'fill', overlay?: boolean}} opts
  */
-export function drawFilmFrame(ctx, film, t, { fit = 'fit', overlay = true } = {}) {
+export function drawFilmFrame(ctx, film, t, { fit = 'fit', overlay = true, credit = true } = {}) {
+  const i = drawPicture_(ctx, film, t, fit, overlay);
+  if (credit) drawCredit(ctx);
+  return i;
+}
+
+function drawPicture_(ctx, film, t, fit, overlay) {
   const W = ctx.canvas.width, H = ctx.canvas.height;
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, W, H);

@@ -3,6 +3,7 @@
  * Everything is rendered and packed in the browser; nothing is uploaded.
  */
 import { SAMPLE_CREDITS } from '../audio/sample-library.js';
+import { APP_CREDIT, APP_URL, AUTHOR } from '../credit.js';
 
 export function download(blob, name) {
   const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: name });
@@ -12,14 +13,15 @@ export function download(blob, name) {
 
 export function creditsText() {
   return [
-    'Music made with Synesthesia (photo → music, runs in the browser).',
+    `${APP_CREDIT} — ${APP_URL}`,
+    `Synesthesia app by ${AUTHOR}, free to use under the Apache License 2.0.`,
     '',
     'Instrument recordings (Creative Commons Attribution 3.0, CC BY 3.0):',
     ...SAMPLE_CREDITS.map((c) => `  - ${c}`),
     'Audio engine: Tone.js (MIT).',
     '',
     'If you publish this music, please keep a credit line such as:',
-    '  "Music: Synesthesia · instruments: VSCO 2 (Versilian Studios), Karoryfer Samples,',
+    `  "Music: Synesthesia by ${AUTHOR} · instruments: VSCO 2 (Versilian Studios), Karoryfer Samples,`,
     '   University of Iowa MIS, OLPC Berklee Sound Library — CC BY 3.0"',
   ].join('\n');
 }
@@ -55,6 +57,10 @@ export function initExportMenu({ root, getJob, setStatus, withPausedPlayback }) 
         const file = kind === 'photo' ? `synesthesia-photo-${stamp}.jpg` : `${baseName(job)}-card.png`;
         download(blob, file);
         setStatus(`Saved ${file} (${(blob.size / 1048576).toFixed(1)} MB)`);
+        return;
+      }
+      if (kind === 'video') {
+        await withPausedPlayback(() => photoVideo(job, baseName(job)));
         return;
       }
       await withPausedPlayback(async () => {
@@ -102,6 +108,31 @@ export function initExportMenu({ root, getJob, setStatus, withPausedPlayback }) 
       busy = false;
       summary.classList.remove('busy');
     }
+  }
+
+  /** One photo + its music → a short MP4 (slow push-in, points lighting up on their notes). */
+  async function photoVideo(job, name) {
+    const [{ loopArrangement, stepsToSeconds }, { renderSoundtrack }, { exportMp4 }, { drawFilmFrame, pointHits }, { outputSize }] = await Promise.all([
+      import('../core/timeline.js'), import('../audio/exporter.js'), import('../video/export-mp4.js'),
+      import('../video/film-renderer.js'), import('../video/scenes.js'),
+    ]);
+    const loopSec = stepsToSeconds(job.arrangement.loopSteps, job.tempo);
+    const loops = Math.max(2, Math.min(8, Math.round(20 / loopSec)));
+    const arrangement = loopArrangement(job.arrangement, loops);
+    const musicSec = loops * loopSec, length = musicSec + 2;
+    const timeline = { tempo: job.tempo, totalSeconds: musicSec, sections: [{ startSec: 0, seconds: length, startStep: 0, steps: arrangement.loopSteps }] };
+    const film = { kind: 'slides', items: [{ image: job.image, analysis: job.analysis }], timeline, hits: pointHits(timeline, arrangement) };
+    setStatus(`Composing ${Math.round(length)} seconds of music…`);
+    const audio = await renderSoundtrack({ arrangement, style: job.style, tempo: job.tempo, reverb: job.reverb, length });
+    const { width, height } = outputSize('original', 720, job.image.width, job.image.height);
+    setStatus('Making the video… 0%');
+    const { blob, extension } = await exportMp4({
+      width, height, fps: 30, duration: length, audio,
+      drawFrame: (c, t) => drawFilmFrame(c, film, t, { fit: 'fit', overlay: job.pointsAs !== 'off' }),
+      onProgress: (f) => setStatus(`Making the video… ${Math.round(f * 100)}%`),
+    });
+    download(blob, `${name}.${extension}`);
+    setStatus(`Saved ${name}.${extension} (${(blob.size / 1048576).toFixed(1)} MB, ${Math.round(length)} s): the photo with its music. ${APP_CREDIT}.`);
   }
 
   root.querySelectorAll('[data-export]').forEach((b) => b.addEventListener('click', () => run(b.dataset.export)));

@@ -6,6 +6,8 @@
  * Drawn in the browser at full quality (up to 2048 px); nothing is uploaded.
  */
 
+import { APP_CREDIT } from '../credit.js';
+
 const MAX_SIDE = 2048;
 const rgb = (c) => `rgb(${c.r},${c.g},${c.b})`;
 
@@ -93,6 +95,6 @@ export async function musicCardBlob({ image, analysis, score, style, pointsAs, t
   }
   g.fillStyle = '#8d8a99';
   g.font = `500 ${18 * u}px Inter, system-ui, sans-serif`;
-  g.fillText('made with Synesthesia', pad, h + 152 * u);
+  g.fillText(APP_CREDIT, pad, h + 152 * u);
   return toBlob(c, 'image/png');
 }

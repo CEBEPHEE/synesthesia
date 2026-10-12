@@ -47,3 +47,16 @@ describe('exportLength', () => {
     assert.equal(exportLength(160, 60).loops, 2);
   });
 });
+
+describe('wav credit tags', async () => {
+  const { encodeWav } = await import('../src/audio/wav.js');
+  it('writes a valid LIST/INFO chunk', () => {
+    const buf = encodeWav([new Float32Array(10), new Float32Array(10)], 44100, { info: { ICMT: 'Made with Synesthesia' } });
+    const v = new DataView(buf);
+    assert.equal(v.getUint32(4, true), buf.byteLength - 8);           // RIFF size covers everything
+    const text = new TextDecoder().decode(new Uint8Array(buf, 84));
+    assert.ok(text.startsWith('LIST'));
+    assert.ok(text.includes('Made with Synesthesia'));
+    assert.equal(buf.byteLength % 2, 0);
+  });
+});

@@ -61,7 +61,7 @@ export const STYLES = Object.freeze([
   },
   {
     id: 'shoegaze', name: 'Shoegaze',
-    blurb: 'A wall of fuzzy, chorused electric guitars drowned in reverb over bass and washed-out live drums, with a bowed violin line floating inside it.',
+    blurb: 'A wall of fuzzy, chorused electric guitars drowned in reverb over bass and washed-out live drums; the points play a “glide guitar”: notes that swell in and bend slowly, like a held tremolo arm.',
     whyText: 'blurry, hazy, warm or glowing photos',
     profile: { brightness: [0.6, 1], contrast: [0.45, 0.5], saturation: [0.55, 1], colorfulness: [0.5, 1], warmth: [0.75, 1], sharpness: [0.05, 2], grain: [0.05, 1], complexity: [0.15, 0.5] },
     tempo: [72, 92], modeShift: 0, vocab: 'add9', register: { low: 47, high: 79 },
@@ -69,8 +69,8 @@ export const STYLES = Object.freeze([
     bass: { pattern: 'x.......x.......', dur: 8 },
     drums: { kick: 'x.......x.x.....', snare: '....x.......x...', hat: 'x.x.x.x.x.x.x.x.' }, swing: 0,
     humanize: { time: 0.1, vel: 0.15 },
-    melody: { octave: 0, dur: 6 },
-    sound: { chords: 'fuzzGuitar', bass: 'electricBass', kit: 'washed', melody: 'violin' },
+    melody: { octave: -12, dur: 6 },
+    sound: { chords: 'fuzzGuitar', bass: 'electricBass', kit: 'washed', melody: 'glideGuitar' },
     fx: { reverb: [10, 0.5], delay: 0.25, distortion: 0, chorus: 0.8, lowpass: 3200, vibrato: 0.1, pump: false },
   },
   {

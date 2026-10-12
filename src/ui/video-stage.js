@@ -57,10 +57,11 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
   function compose() {
     const pointsAs = ui.points.value === 'default' ? undefined : ui.points.value;
     const scenes = film.items.map((it) => ({ analysis: it.analysis, seconds: film.kind === 'video' ? it.end - it.start : Number(ui.seconds.value) }));
-    const timeline = buildTimeline(scenes, {
+    const settings = {
       styleId: ui.style.value === 'auto' ? null : ui.style.value, getStyle,
       mood: Number(ui.mood.value), pointsAs, snap: film.kind === 'video' ? 'beat' : 'bar',
-    });
+    };
+    const timeline = buildTimeline(scenes, settings);
     const arrangement = timelineArrangement(timeline);
     Object.assign(film, { timeline, arrangement, hits: pointHits(timeline, arrangement) });
     renderStyleOptions(ui.style, timeline.ranking);
@@ -124,7 +125,7 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
   const position = () => {
     const engine = getEngine();
     if (!engine || engine.state === 'stopped' || !film?.timeline) return 0;
-    return stepsToSeconds(engine.step % film.timeline.totalSteps, film.timeline.tempo);
+    return stepsToSeconds(engine.step % film.timeline.totalSteps, film.timeline.tempo);   // music time
   };
 
   function draw() {
@@ -323,7 +324,8 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
   }
 
   // ── Opening films ──
-  async function begin(kind) {
+  /** opts: music settings to start from (e.g. the style you picked in camera mode); default Auto. */
+  async function begin(kind, opts = {}) {
     const my = ++ticket;
     onOpen();
     listen();
@@ -333,7 +335,9 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
     film = null;
     ui.stage.hidden = false;
     ui.play.disabled = ui.stop.disabled = ui.exportBtn.disabled = true;
-    ui.style.value = 'auto'; ui.points.value = 'default'; ui.mood.value = '0';
+    ui.style.value = opts.styleId && STYLES.some((x) => x.id === opts.styleId) ? opts.styleId : 'auto';
+    ui.points.value = opts.pointsAs ?? 'default';
+    ui.mood.value = String(opts.mood ?? 0);
     ui.secondsWrap.hidden = kind !== 'slides';
     ui.originalWrap.hidden = kind !== 'video';
     ui.overlay.checked = kind === 'slides';
@@ -361,8 +365,8 @@ export function initVideoStage({ analyzer, ensureEngine, getEngine, onOpen }) {
     sizePreview(); compose(); renderTips(extra); loop();
   }
 
-  async function openVideo(file) {
-    const my = await begin('video');
+  async function openVideo(file, opts) {
+    const my = await begin('video', opts);
     try {
       setStatus('Opening the video…');
       const video = await loadVideo(file);

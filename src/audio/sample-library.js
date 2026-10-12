@@ -1,5 +1,6 @@
 /**
- * Sample library manifest (generated from assets/samples/manifest.json).
+ * Sample library: which recorded notes each instrument has (the audio itself is in
+ * assets/samples/<instrument>.bin, see sample-packs.js).
  * Real recordings of acoustic and electric instruments, re-encoded and trimmed
  * to keep the download small. Every style loads only the instruments it uses.
  */

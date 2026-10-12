@@ -6,6 +6,7 @@
 import Tone from '../../vendor/tone.mjs';
 import { AudioEngine } from './audio-engine.js';
 import { encodeWav, exportLength } from './wav.js';
+import { APP_CREDIT } from '../credit.js';
 
 /**
  * @param {{arrangement, style, tempo: number, reverb?: number|null, mutedTracks?: string[]}} job
@@ -26,7 +27,7 @@ export async function renderToWav({ arrangement, style, tempo, reverb = null, mu
     transport.stop(musicSeconds);           // whole loops, then let the last notes ring out
   }, totalSeconds, 2, 44100);
   const channels = [buffer.getChannelData(0), buffer.getChannelData(1)];
-  const wav = encodeWav(channels, buffer.sampleRate, { fadeOut: 1.5 });
+  const wav = encodeWav(channels, buffer.sampleRate, { fadeOut: 1.5, info: { ICMT: APP_CREDIT, ISFT: APP_CREDIT } });
   return { blob: new Blob([wav], { type: 'audio/wav' }), wav, seconds: totalSeconds };
 }
 

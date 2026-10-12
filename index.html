@@ -11,7 +11,8 @@
   -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; worker-src 'self' blob:; img-src 'self' blob: data:; style-src 'self' 'unsafe-inline'; connect-src 'self'; media-src 'self' blob: mediastream:; form-action 'none'; base-uri 'none'; object-src 'none'">
   <meta name="referrer" content="no-referrer">
-  <title>Synesthesia — turn a photo into music</title>
+  <title>Synesthesia — music from photos, videos and your camera</title>
+  <meta name="description" content="Turn photos, videos and your live camera into original music, right in the browser. Colours set the key, shapes and movement play the melody, the look picks the genre. Save audio, MIDI or an MP4 with its soundtrack. Nothing is uploaded.">
   <link rel="icon" href="assets/icon.svg" type="image/svg+xml">
   <link rel="icon" href="assets/icon-32.png" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="assets/icon-180.png">
@@ -23,23 +24,40 @@
   <header>
     <div>
       <h1>Synesthesia</h1>
-      <p>Colour becomes a key, distance becomes an interval, the look of your photo picks the genre.</p>
+      <p>Music from what you see: photos, videos and your camera. Colours set the key, shapes and movement play the melody, the look of the picture picks the genre.</p>
     </div>
     <button id="how-btn" type="button">How it works</button>
   </header>
 
   <main>
-    <section id="upload-zone" role="button" tabindex="0" aria-label="Upload a photo, several photos or a video">
-      <div>
-        <strong>Drop a photo here</strong> or click to choose one (pasting from the clipboard works too)
-        <div class="small">🎬 Drop <b>several photos</b> for a slideshow, or <b>a video</b>, and get an MP4 with its own soundtrack.</div>
-        <div class="privacy">🔒 Your files are processed only in this browser tab and are never uploaded.</div>
+    <section id="upload-zone" role="button" tabindex="0" aria-label="Choose a photo, several photos or a video">
+      <div class="zone-main">
+        <strong>Drop a photo, a few photos or a video here</strong>, or press <b>Choose a photo or video</b> (pasting a picture works too)
+        <ul class="modes">
+          <li><span class="mode-icon">🖼</span><span><b>A photo</b> becomes a music loop you can play, edit and save as audio, MIDI, a music card or a short video.</span></li>
+          <li><span class="mode-icon">🎬</span><span><b>Several photos or a video</b> get a whole soundtrack that changes with every scene, saved as an MP4 for Reels, TikTok or YouTube.</span></li>
+          <li><span class="mode-icon">📷</span><span><b>Your camera</b> plays live: movement plays the melody, colours change the key. Take photos or record videos with the music.</span></li>
+        </ul>
+        <div class="privacy">🔒 Everything happens in this browser tab: your photos, videos and camera are never uploaded.</div>
       </div>
       <div class="zone-actions">
-        <button id="camera-btn" type="button">📷 Use camera</button>
-        <button id="demo-btn" type="button">Try a demo image</button>
+        <button id="choose-btn" type="button" class="primary big">🖼 Choose a photo or video</button>
+        <button id="camera-btn" type="button" class="big">📷 Use camera</button>
+        <button id="demo-btn" type="button" class="link">or try a demo image</button>
       </div>
       <input id="file-input" type="file" accept="image/*,video/*" multiple hidden>
+    </section>
+
+    <section id="gallery" class="gallery card" hidden aria-label="This session">
+      <div class="gallery-head">
+        <h2>This session</h2>
+        <span class="muted small">Your recordings and photos stay here until you close this tab. They are not uploaded anywhere: save the ones you want to keep.</span>
+      </div>
+      <div class="gallery-items"></div>
+      <dialog class="player" aria-label="Watch the recording">
+        <form method="dialog" class="dialog-close"><button aria-label="Close">✕</button></form>
+        <video controls playsinline></video>
+      </dialog>
     </section>
 
     <section id="stage" hidden>
@@ -51,14 +69,18 @@
           <button id="play-btn" class="primary" disabled aria-pressed="false">▶ Play</button>
           <button id="stop-btn" disabled>■ Stop</button>
           <details class="menu" id="export-menu">
-            <summary class="disabled" id="export-btn">⬇ Export</summary>
+            <summary class="disabled" id="export-btn">⬇ Save</summary>
             <div class="menu-items" role="menu">
-              <button role="menuitem" data-export="wav"><b>Audio</b><span>WAV · the full mix</span></button>
-              <button role="menuitem" data-export="midi"><b>MIDI</b><span>the notes, for Ableton, FL Studio, GarageBand…</span></button>
-              <button role="menuitem" data-export="stems"><b>Stems + MIDI</b><span>ZIP · each instrument group as its own WAV</span></button>
-              <hr>
-              <button role="menuitem" data-export="photo"><b>Photo</b><span>JPEG · the picture itself (e.g. one taken with the camera)</span></button>
-              <button role="menuitem" data-export="card"><b>Music card</b><span>PNG · the photo with its points, style, key and chords</span></button>
+              <div class="menu-group">🔊 The music (sound)</div>
+              <button role="menuitem" data-export="wav"><b>Music · WAV</b><span>The sound you hear, ready to listen to or post. No picture.</span></button>
+              <div class="menu-group">🎹 For music apps</div>
+              <button role="menuitem" data-export="midi"><b>Notes · MIDI</b><span>Only the notes (no sound, no picture), to open in GarageBand, Ableton, FL Studio, MuseScore…</span></button>
+              <button role="menuitem" data-export="stems"><b>Separate instruments · ZIP</b><span>A sound file for each instrument group + the full mix + MIDI, to remix in a music app.</span></button>
+              <div class="menu-group">🖼 The picture</div>
+              <button role="menuitem" data-export="photo"><b>Photo · JPEG</b><span>Only the picture itself, without points and without music.</span></button>
+              <button role="menuitem" data-export="card"><b>Music card · PNG</b><span>The picture with its points, the style, key and chords written on it. No sound.</span></button>
+              <div class="menu-group">🎬 Picture + music</div>
+              <button role="menuitem" data-export="video"><b>Video · MP4</b><span>The photo with its music as a short video (for stories and posts).</span></button>
             </div>
           </details>
           <label>Style
@@ -127,7 +149,7 @@
         <div class="transport">
           <button id="film-play" class="primary" disabled>▶ Play</button>
           <button id="film-stop" disabled>■ Stop</button>
-          <button id="film-export" disabled>🎬 Export MP4</button>
+          <button id="film-export" disabled title="Saves the pictures together with the music">🎬 Save video (MP4 with music)</button>
           <label>Style <select id="film-style" aria-label="Music style"><option value="auto">Auto</option></select></label>
         </div>
         <div class="transport secondary">
@@ -176,8 +198,8 @@
         <p id="cam-status" role="status" aria-live="polite"></p>
         <div class="transport">
           <button id="cam-music" class="primary">▶ Music</button>
-          <button id="cam-photo">📸 Take photo</button>
-          <button id="cam-record">● Record video</button>
+          <button id="cam-photo" title="Takes a photo and opens it with its music">📸 Take photo</button>
+          <button id="cam-record" title="Records the camera picture together with the music">● Record video with music</button>
           <label>Style <select id="cam-style" aria-label="Music style"><option value="auto">Auto</option></select></label>
           <button id="cam-repick" type="button" title="Choose the style again from what the camera sees now">↻</button>
           <button id="cam-close" type="button">✕ Close camera</button>
@@ -190,28 +212,34 @@
             <select id="cam-points">
               <option value="default">Style default</option><option value="melody">Melody</option><option value="drums">Drums</option><option value="off">Nothing</option>
             </select></label>
-          <label>Movement <meter id="cam-motion" min="0" max="1" value="0"></meter></label>
+<label>Movement <meter id="cam-motion" min="0" max="1" value="0"></meter></label>
           <label><input id="cam-mirror" type="checkbox" checked> Mirror</label>
           <label id="cam-device-wrap" hidden>Camera <select id="cam-device"></select></label>
         </div>
         <div id="cam-result" class="cam-result" hidden>
           <video id="cam-result-video" controls playsinline></video>
           <div class="cam-result-actions">
-            <button id="cam-score" class="primary" type="button">🎬 Make music for this video</button>
+            <button id="cam-score" class="primary" type="button">🎬 Make a new soundtrack (MP4)</button>
             <button id="cam-save" type="button">⬇ Save the recording</button>
-            <button id="cam-discard" type="button">Discard</button>
+            <button id="cam-discard" type="button">Close</button>
           </div>
-          <p class="muted small">“Make music for this video” opens it like an uploaded video: scenes, a soundtrack and MP4 export.</p>
+          <p class="muted small">The video has the picture and the music you heard. “Make music for this video” composes a new soundtrack scene by scene and exports an MP4. The recording also stays under “This session” until you close the tab.</p>
         </div>
       </div>
       <aside class="card" id="cam-why"></aside>
     </section>
   </main>
 
+  <footer class="site-footer">
+    <span><b>Synesthesia</b></span>
+    <span class="muted">Free to use under the Apache License 2.0.</span>
+    <a href="https://github.com/cebephee/synesthesia" target="_blank" rel="noopener noreferrer">Source on GitHub</a>
+  </footer>
+
   <dialog id="how-dialog" aria-labelledby="how-title">
     <form method="dialog" class="dialog-close"><button aria-label="Close">✕</button></form>
     <h2 id="how-title">How it works</h2>
-    <p>Synesthesia reads your photo the way a musician might read a painting. Everything is calculated with simple, deterministic rules, so the same photo always gives the same music, and every step can be explained.</p>
+    <p>Synesthesia reads pictures the way a musician might read a painting: a single photo, every scene of a video or a slideshow, or the live picture from your camera. Everything is calculated with simple, deterministic rules, so the same picture always gives the same music, and every step can be explained. Below is how one picture becomes music; videos and the camera repeat it scene by scene or bar by bar.</p>
 
     <ol class="steps">
       <li><b>Look at the photo.</b> The image is shrunk to about 190 px and analysed in a background thread. Three things are measured:
@@ -234,7 +262,7 @@
       <li><b>⬇ Export</b>: the full mix as WAV, the notes as MIDI, or separate instrument tracks (stems) plus MIDI in a ZIP, for any music app.</li>
       <li><b>Mood</b>: moves the key one or two steps darker or brighter without changing anything else.</li>
       <li><b>✎ Edit</b>: drag the points, add or remove them, and pick another chord for any colour. ★ marks chords that will sound smooth, and the harmony check warns about choices that may sound rough.</li>
-      <li><b>Camera</b>: live music from your webcam. Moving hands play the points, colours held in front of the camera change the key (after two bars, so the music never twitches). You can also take a photo or record a video right in the app.</li>
+            <li><b>Camera</b>: live music from your webcam. Moving hands play the points, colours held in front of the camera change the key (after two bars, so the music never twitches). You can also take a photo or record a video right in the app.</li>
       <li><b>Slideshows and videos</b>: drop several photos or a video. One style and tempo carry the whole film, each photo or scene gets its own chords, and the music changes exactly when the picture does. Export as MP4 for YouTube, Reels or TikTok.</li>
     </ul>
 
@@ -245,6 +273,7 @@
     <div id="style-library"></div>
 
     <h3>Credits</h3>
+    <p>Synesthesia is free to use under the Apache License 2.0 (see LICENSE and NOTICE on GitHub). Videos and music cards saved from the app carry a small “Made with Synesthesia” line.</p>
     <p class="muted small">Instrument recordings are used under the Creative Commons Attribution 3.0 licence (CC BY 3.0); audio engine: Tone.js (MIT); MP4 packing: mp4-muxer (MIT).</p>
     <ul id="credits" class="credits small"></ul>
   </dialog>

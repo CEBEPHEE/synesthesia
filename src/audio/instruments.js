@@ -12,19 +12,50 @@
  * release(), dispose() }.
  */
 import { INSTRUMENT_SAMPLES, DRUM_SAMPLES } from './sample-library.js';
+import { SAMPLE_PACKS } from './sample-packs.js';
 
 export const midiToHz = (m) => 440 * 2 ** ((m - 69) / 12);
 
 const BASE_URL = new URL('../../assets/samples/', import.meta.url).href;
 
 // ─── Sample loading (shared across rigs, so switching styles is instant) ────
+// Recordings come in packs (one file per instrument, see sample-packs.js).
+// A pack is downloaded once; each recording is cut out of it and decoded.
 
+const packCache = new Map();            // pack key → Promise<ArrayBuffer>
 const bufferCache = new Map();          // path → Promise<AudioBuffer>
 
+function loadPack(key) {
+  if (!packCache.has(key)) {
+    const pack = SAMPLE_PACKS[key];
+    if (!pack) return Promise.reject(new Error(`Unknown sample pack "${key}"`));
+    const url = BASE_URL + pack.file;
+    const p = fetch(url).then((r) => {
+      if (!r.ok) {
+        throw new Error(`The instrument recordings were not found on the server (${r.status} for assets/samples/${pack.file}). `
+          + 'Upload the whole "assets" folder next to index.html.');
+      }
+      return r.arrayBuffer();
+    });
+    p.catch(() => packCache.delete(key));     // allow a retry after a failed load
+    packCache.set(key, p);
+  }
+  return packCache.get(key);
+}
+
+/** path: "piano/A1.mp3" or "drums/acoustic/kick.mp3" → AudioBuffer (decoded once per session). */
 function loadBuffer(Tone, path) {
   if (!bufferCache.has(path)) {
-    const p = Tone.ToneAudioBuffer.load(BASE_URL + path);
-    p.catch(() => bufferCache.delete(path));   // allow a retry after a failed load
+    const cut = path.lastIndexOf('/');
+    const key = path.slice(0, cut), file = path.slice(cut + 1);
+    const p = loadPack(key).then(async (data) => {
+      const entry = SAMPLE_PACKS[key].entries[file];
+      if (!entry) throw new Error(`Missing recording ${path}`);
+      const bytes = data.slice(entry[0], entry[0] + entry[1]);       // decodeAudioData takes ownership, so copy
+      const audio = await Tone.getContext().decodeAudioData(bytes);
+      return audio;
+    });
+    p.catch(() => bufferCache.delete(path));
     bufferCache.set(path, p);
   }
   return bufferCache.get(path);
@@ -162,11 +193,32 @@ export const MELODY_INSTRUMENTS = {
     ...ampChain(T, { drive: 0.6, cab: 3800, pan: 0.1 }),
     new T.Vibrato({ frequency: 5.2, depth: 0.05 }),
   ]),
+  // Shoegaze "glide guitar": every note swells in (volume-knob swell), wobbles slowly
+  // like a held tremolo arm, through fuzz and chorus, with a quiet octave on top,
+  // and the style's huge reverb does the rest.
+  glideGuitar: (Tone) => glideGuitar(Tone),
   // synthetic on purpose (synthwave)
   square: async (Tone) => synthWithFilter(Tone, new Tone.Synth({
     oscillator: { type: 'square' }, envelope: { attack: 0.01, decay: 0.2, sustain: 0.4, release: 0.5 }, volume: -22,
   }), 3000),
 };
+
+async function glideGuitar(Tone) {
+  const s = await makeSampler(Tone, 'electric-guitar', { volume: -17, attack: 0.22, release: 2.2, curve: 'linear' });
+  const fuzz = new Tone.Distortion({ distortion: 0.35, oversample: '2x', wet: 0.55 });
+  const tone = new Tone.Filter({ frequency: 3400, type: 'lowpass', Q: 0.5 });
+  const wobble = new Tone.Vibrato({ frequency: 3.2, depth: 0.12 });
+  const chorus = new Tone.Chorus({ frequency: 0.9, delayTime: 4, depth: 0.7, spread: 160, wet: 0.6 }).start();
+  s.chain(fuzz, tone, wobble, chorus);
+  const play = (time, ev, sps) => {
+    const dur = Math.max(0.3, ev.dur * sps * 1.4);           // let notes overlap into each other
+    for (const m of ev.notes) {
+      s.triggerAttackRelease(midiToHz(m), dur, time, ev.vel);
+      if (m + 12 <= 88) s.triggerAttackRelease(midiToHz(m + 12), dur, time + 0.03, ev.vel * 0.3);   // octave shimmer
+    }
+  };
+  return wrap([s, fuzz, tone, wobble, chorus], chorus, play, s);
+}
 
 // ─── Bass instruments ───────────────────────────────────────────────────────
 

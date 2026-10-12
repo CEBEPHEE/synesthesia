@@ -19,18 +19,27 @@ const toMidi = (n) => { const m = n.match(/^([A-G]#?)(\d)$/); return 12 * (+m[2]
 const keysOf = (name) => new Set([...section(name).matchAll(/^\s{2}'?([\w]+)'?:/gm)].map((m) => m[1]));
 
 describe('sample library', () => {
-  it('every recording listed in the manifest exists on disk', () => {
-    for (const [id, inst] of Object.entries(INSTRUMENT_SAMPLES)) {
-      for (const file of Object.values(inst.notes)) assert.ok(fs.existsSync(new URL(`assets/samples/${id}/${file}`, root)), `${id}/${file}`);
-    }
-    for (const [kit, d] of Object.entries(DRUM_SAMPLES)) {
-      for (const file of Object.values(d.files)) assert.ok(fs.existsSync(new URL(`assets/samples/drums/${kit}/${file}`, root)), `${kit}/${file}`);
+  it('every recording listed in the library is inside its pack, and every pack file exists', async () => {
+    const { SAMPLE_PACKS } = await import('../src/audio/sample-packs.js');
+    const check = (key, file) => {
+      const pack = SAMPLE_PACKS[key];
+      assert.ok(pack, `pack ${key}`);
+      const e = pack.entries[file];
+      assert.ok(e, `${key}/${file}`);
+      assert.ok(e[0] + e[1] <= pack.bytes);
+    };
+    for (const [id, inst] of Object.entries(INSTRUMENT_SAMPLES)) for (const file of Object.values(inst.notes)) check(id, file);
+    for (const [kit, d] of Object.entries(DRUM_SAMPLES)) for (const file of Object.values(d.files)) check(`drums/${kit}`, file);
+    for (const pack of Object.values(SAMPLE_PACKS)) {
+      const url = new URL(`assets/samples/${pack.file}`, root);
+      assert.ok(fs.existsSync(url), pack.file);
+      assert.equal(fs.statSync(url).size, pack.bytes, pack.file);
     }
   });
 
   it('every style keeps its melody within 4 semitones of a real recording', () => {
     const SAMPLE_OF = { piano: 'piano', saxophone: 'saxophone', flute: 'flute', violin: 'violin', horn: 'french-horn',
-      harp: 'harp', xylophone: 'xylophone', nylonGuitar: 'nylon-guitar', guitarLead: 'electric-guitar', acousticGuitar: 'acoustic-guitar' };
+      harp: 'harp', xylophone: 'xylophone', nylonGuitar: 'nylon-guitar', guitarLead: 'electric-guitar', glideGuitar: 'electric-guitar', acousticGuitar: 'acoustic-guitar' };
     for (const s of STYLES) {
       const id = SAMPLE_OF[s.sound.melody];
       if (!id) continue;                                   // synthesised lead

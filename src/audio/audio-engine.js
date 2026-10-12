@@ -90,7 +90,7 @@ export class AudioEngine extends EventTarget {
     if (ticket !== this.#loadTicket || !this.#rig) return;
     this.#disposeParts();
     const transport = Tone.getTransport();
-    transport.bpm.rampTo(arrangement.tempo, 0.4);
+    this.#rampTempo(arrangement.tempo, 0.4);
     const loopEnd = ticks(arrangement.loopSteps);
     const sps = () => 60 / transport.bpm.value / 4;    // seconds per 16th step
     const draw = Tone.getDraw();
@@ -262,7 +262,20 @@ export class AudioEngine extends EventTarget {
     this.#rig?.reverbSend.gain.rampTo(wet, 0.2);
   }
 
-  setTempo(bpm) { Tone.getTransport().bpm.rampTo(bpm, 0.3); }
+  setTempo(bpm) { this.#rampTempo(bpm, 0.3); }
+
+  /**
+   * One tempo change at a time: frequent changes (the tempo slider, a new arrangement
+   * each bar in camera mode) must not stack ramps on the transport clock, which would corrupt it.
+   */
+  #rampTempo(bpm, seconds) {
+    const p = Tone.getTransport().bpm;
+    if (Math.abs(p.value - bpm) < 0.05) return;
+    const now = Tone.now();
+    p.cancelScheduledValues(now);
+    p.setValueAtTime(p.value, now);
+    p.linearRampToValueAtTime(bpm, now + seconds);
+  }
 
   dispose() {
     this.stop();

@@ -6,6 +6,7 @@
  * Pitched parts get the closest General MIDI instrument; drums use channel 10
  * with the General MIDI drum map, so any DAW plays sensible sounds right away.
  */
+import { APP_CREDIT } from '../credit.js';
 
 export const PPQ = 480;
 const TICKS_PER_STEP = PPQ / 4;                 // one 16th note
@@ -93,6 +94,7 @@ export function arrangementToMidi(arrangement, style, { loops = 4, tempo = arran
   const usPerBeat = Math.round(60_000_000 / tempo);
   chunks.push(trackChunk([
     { tick: 0, order: 0, data: [0xff, 0x03, ...vlq(text(title).length), ...text(title)] },
+    { tick: 0, order: 0, data: [0xff, 0x02, ...vlq(text(APP_CREDIT).length), ...text(APP_CREDIT)] },   // copyright notice
     { tick: 0, order: 1, data: [0xff, 0x51, 0x03, (usPerBeat >> 16) & 255, (usPerBeat >> 8) & 255, usPerBeat & 255] },
     { tick: 0, order: 2, data: [0xff, 0x58, 0x04, 4, 2, 24, 8] },
   ]));

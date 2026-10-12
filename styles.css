@@ -149,10 +149,11 @@ details.menu > summary:hover { border-color: var(--accent); }
 details.menu > summary.disabled { opacity: .45; cursor: not-allowed; }
 details.menu > summary.busy { opacity: .7; cursor: progress; }
 .menu-items {
-  position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; min-width: 270px;
+  position: absolute; z-index: 20; top: calc(100% + 6px); left: 0; min-width: 270px; width: max-content; max-width: min(360px, 90vw);
   background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px;
-  box-shadow: 0 12px 30px rgba(0,0,0,.45); display: grid; gap: 2px;
+  box-shadow: 0 12px 30px rgba(0,0,0,.45); display: flex; flex-direction: column; gap: 2px;
 }
+.menu-items > * { flex-shrink: 0; }
 .menu-items button { text-align: left; background: none; border: 1px solid transparent; display: grid; gap: 1px; padding: 8px 10px; }
 .menu-items button:hover { background: #22222d; border-color: var(--line); }
 .menu-items button span { color: var(--muted); font-size: 12px; }
@@ -237,3 +238,43 @@ button.recording { border-color: #ff5f56; color: #ff8a80; }
 #cam-why h3 { margin-top: 0; }
 .chip { display: inline-block; border: 1px solid; border-bottom-width: 3px; border-radius: 8px; padding: 1px 8px; margin: 2px 2px 2px 0; font-size: 13px; }
 .menu-items hr { border: 0; border-top: 1px solid var(--line); margin: 4px 0; }
+
+/* ── Export menu groups ── */
+.menu-group { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 8px 10px 2px; }
+.menu-items { max-height: 70vh; overflow-y: auto; }
+
+/* ── This session (gallery) ── */
+.gallery[hidden] { display: none; }
+.gallery-head { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.gallery-head h2 { margin: 0; font-size: 17px; }
+.gallery-items { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 10px; margin-top: 10px; }
+.gitem { display: grid; grid-template-columns: 96px 1fr; gap: 6px 10px; align-items: center; padding: 8px; border: 1px solid var(--line); border-radius: 12px; background: #1b1b24; }
+.gitem img { width: 96px; height: 60px; object-fit: cover; border-radius: 8px; grid-row: span 2; background: #000; }
+.ginfo { display: grid; }
+.gactions { display: flex; gap: 6px; flex-wrap: wrap; }
+.gactions button { padding: 5px 10px; font-size: 13px; }
+dialog.player { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; color: var(--text); max-width: min(900px, 92vw); }
+dialog.player::backdrop { background: rgba(0,0,0,.6); }
+dialog.player video { width: 100%; max-height: 75vh; border-radius: 8px; background: #000; display: block; margin-top: 8px; }
+
+/* ── Upload zone: the three ways in ── */
+.zone-main { flex: 1 1 520px; min-width: 0; }
+.modes { list-style: none; padding: 0; margin: 10px 0 8px; display: grid; gap: 6px; }
+.modes li { display: grid; grid-template-columns: 26px 1fr; gap: 6px; font-size: 14px; color: #d7d4cc; }
+.mode-icon { font-size: 16px; line-height: 1.4; }
+
+/* ── Start buttons ── */
+.zone-actions { flex-direction: column; align-items: stretch; min-width: 240px; }
+.zone-actions button.big { padding: 12px 18px; font-size: 16px; }
+.zone-actions button.link { background: none; border-color: transparent; color: var(--muted); text-decoration: underline; padding: 4px; }
+.zone-actions button.link:hover { color: var(--text); }
+@media (max-width: 600px) { .zone-actions { width: 100%; } }
+
+#upload-zone.drag { border-style: solid; }
+@media (max-width: 600px) { #upload-zone .zone-actions { order: -1; } }   /* phones: the buttons come first */
+
+/* ── Footer ── */
+.site-footer { max-width: 1280px; margin: 0 auto; padding: 8px 24px 32px; display: flex; gap: 8px 18px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
+.site-footer b { color: var(--text); font-weight: 600; }
+.site-footer a { color: var(--accent-2); }
+

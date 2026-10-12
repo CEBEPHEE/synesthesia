@@ -1,0 +1,28 @@
+Synesthesia — music from photos, videos and your camera
+Copyright 2026 Victoria Lisitsyna
+
+Created by Victoria Lisitsyna.
+https://github.com/cebephee/synesthesia
+
+This software is free to use, copy, modify and share, also commercially,
+under the Apache License, Version 2.0 (see the LICENSE file).
+
+Attribution: every copy, fork or modified version must keep this NOTICE file
+and must credit the author, for example:
+
+    Synesthesia by Victoria Lisitsyna
+
+in its documentation and, if it has a user interface, in that interface
+(for example in an "About" or "Credits" section).
+
+Music, pictures and videos you make with Synesthesia are yours. The app adds
+a small "Made with Synesthesia" line to the videos and music cards it saves;
+please keep it, or credit the app when you publish them.
+
+Third-party parts keep their own licences:
+  - Tone.js (vendor/Tone.js) — MIT, Copyright (c) 2014–present Yotam Mann
+  - mp4-muxer (vendor/mp4-muxer.mjs) — MIT, Copyright (c) 2023 Vanilagy
+  - Instrument recordings (assets/samples) — Creative Commons Attribution 3.0
+    (CC BY 3.0): Versilian Studios VSCO 2, Karoryfer Samples, University of Iowa
+    Electronic Music Studios, OLPC/Berklee Sound Library, Freesound contributors.
+    See the Credits section of README.md for the full list.
